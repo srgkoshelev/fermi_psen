@@ -4,7 +4,7 @@
 #+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
 
 #+MACRO: SYS_NAME purifier panel connection piping
-#+MACRO: P_ID FXXXXXX
+#+MACRO: P_ID F00304972
 
 #+TOC: headlines 2
 \newpage{}
@@ -14,8 +14,10 @@ killall python
 
 #+RESULTS:
 
-#+begin_src python :exports none
+#+begin_src python :results none :exports none
   import heat_transfer as ht
+  from collections import namedtuple
+  Elbow = namedtuple('Elbow', ['D', 'source', 'P'])
   ureg = ht.ureg
   Q_ = ht.Q_
 
@@ -24,16 +26,16 @@ killall python
       def __init__(self, name):
           self.name = name  # will be used in property calculations
 
-      def kappa(self, T1, T2=None):
-          """Calculate temperature conductivity at a given temperature."""
-          return ht.nist_property(self.name, 'TC', T1, T2)
+          def kappa(self, T1, T2=None):
+              """Calculate temperature conductivity at a given temperature."""
+              return ht.nist_property(self.name, 'TC', T1, T2)
 
-      def lin_exp(self, T):
-          """Calculate linear expansion for given temperature"""
-          try:
-              return ht.nist_property(self.name, 'LE', T)
-          except KeyError:
-              return ht.nist_property(self.name, 'EC', 293*ureg.K, T)*(T-293*ureg.K)
+          def lin_exp(self, T):
+              """Calculate linear expansion for given temperature"""
+              try:
+                  return ht.nist_property(self.name, 'LE', T)
+              except KeyError:
+                  return ht.nist_property(self.name, 'EC', 293*ureg.K, T)*(T-293*ureg.K)
 
   steel = Material('304SS')
   steel.rho = Q_('7859 kg/m**3')
@@ -51,23 +53,23 @@ killall python
   pipes = [ht.piping.CopperTube(3/4, 'Type K'),
            ht.piping.CopperTube(1, 'Type K')]
   for pipe in pipes:
-    pipe.material = copper
+      pipe.material = copper
+  listed = [Elbow(3/4, None, 582*ureg.psi),
+            Elbow(1, None, 494*ureg.psi)
+  ]
+  unlisted = []
 #+end_src
 
 #+RESULTS:
-: Python 3.7.0 (default, Aug  2 2018, 21:46:10)
-: [Clang 9.1.0 (clang-902.0.39.2)] on darwin
-: Type "help", "copyright", "credits" or "license" for more information.
-: python.el: native completion setup failed, <class 'ImportError'>: dlopen(/Users/skoshelev/.pyenv/versions/3.7.0/lib/python3.7/lib-dynload/readline.cpython-37m-darwin.so, 2): Library not loaded: /usr/local/opt/readline/lib/libreadline.7.dylib
-:   Referenced from: /Users/skoshelev/.pyenv/versions/3.7.0/lib/python3.7/lib-dynload/readline.cpython-37m-darwin.so
-:   Reason: image not found
 
 * Introduction
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
 
 The {{{SYS_NAME}}} consists of copper tubing and fittings connecting the purifier panel to different part of IB1 cryosystem, such as: storage dewar, distribution box, horizontal test stands, Mycom and Sullair compressor suction, and buffer tanks. Buffer tanks are associated with the highest pressure the {{{SYS_NAME}}} is exposed to driving the design pressure.
 
-The design pressure for {{{SYS_NAME}}} is src_python{print(f'{P_des.to(ureg.psig):.3g~}')} {{{results(=250 psig=)}}}.
+The only source of the cold gas in the {{{SYS_NAME}}} is a 10 ft copper line coming from the storage dewar. This line is only in use when the IB1 cryo system is in shutdown and the storage dewar needs to be purged. Based on extensive operating experience the piping gets cold in the vicinity of HV-315 on top of the Dewar.
+
+The design pressure for {{{SYS_NAME}}} is src_python{print(f'{P_des.to(ureg.psig):.3g~}')}.
 
 
 The P&ID of the {{{SYS_NAME}}} is shown in Figure [[fig:P_ID]]. Drawings of the standalone bayonet and the U-tube a presented in Appendix 10.4, page 11.
@@ -88,9 +90,6 @@ All the piping must meet all of the requirements of Section 5031.1 of the Fermil
 #+end_src
 
 #+RESULTS:
-: This section states that piping systems containing gas at a pressure
-: above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service
-: and shall adhere to the requirements of the ASME Process Piping Code B31.3.
 
 * Materials
 The tubing including fittings are fabricated from
@@ -99,16 +98,18 @@ print(pipes[0].material.name+'.')
 #+end_src
 
 #+RESULTS:
-: Copper.
 
 The respective allowable stress from Table A-1 of ASME B31.3 will be used in this analysis.
 
-The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(ureg.K):.3g~} ({T_des.to(ureg.degF):.3g})')} {{{results(=4.5 K (-452 degF)=)}}}.
+The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(ureg.K):.3g~} ({T_des.to(ureg.degF):.3g})')}.
 #+begin_src python
   if any(T_des < pipe.material.T_min for pipe in pipes):
     print('This is below the minimum temperature listed for any stainless steel pipe or tube. According to B31.3 Section 323.2.2, impact testing is required for this material except as stated in Table 323.2.2 Note (6) where impact testing is not required when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
     if not any(pipe.wall >= 0.098*ureg.inch for pipe in pipes):
       print('All of the tubing and piping with design minimum temperature below -20 F used in the {{{SYS_NAME}}} has a wall thickness of less than 0.098 in. Therefore, impact testing is not required for this piping system.')
+  else:
+    print('This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.')
+
 
 #+end_src
 
@@ -116,9 +117,11 @@ The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{
 
 #+begin_comment
 It should also be noted that Fermilab has extensive service experience using the 300 series stainless steel at liquid nitrogen temperatures and below.
+
 Wall thickness of the 1.5” SCH 10 pipe is 0.109” which is greater than minimum obtainable Charpy specimen. According to Policy for Fracture Toughness Testing Requirements for Pressure Systems and Components at Low Cryogenic Temperatures  from 5/7/2010 recommends:
 “As an alternative to B31.3 323.2.2 and Table 323.2.2 cells A‐4 and B‐4, high alloy steel materials (austenitic stainless steels) listed in Section VIII Div 1 Table UHA‐ 23 used in cryogenic piping with MDMTs colder than 77 K may instead be subjected to all requirements of UHA‐51.”
 UHA-51 (g) exempts from impact testing materials listed in Table UHA-23, except as modified by UHA-51 (c), when ratio of design stress to allowable stress is less than 0.35. UHA-51 (c) (1) requires impact testing if the material has been thermally treated at temperatures between 900 F and 1650 F for austenitic steel. Off-the-shelf 304 and 316 steel is subject to annealing at temperatures above 1800 F and, therefore, is exempt from this requirement. As shown in Table 4.1, design stress to allowable stress ratio is less than 0.35 and impact testing is not required.
+
 Minimum design temperature of He piping is 77 K. According to “Charpy Impact Testing at LN2 Temperature” Memo (ED0004216):
 “All Charpy impact testing requirements have been satisfied for using 304 and 304L piping components with 308L filler metal and a wall thickness of less than 0.359”.  The extensive and successful experience Fermilab has had with the materials listed above has been reinforced with successful Charpy impact testing.  No further testing should be required for most LN2 piping assemblies fabricated by AD/Cryo as long as thickness requirements are met.”
 All piping has wall thickness less than 0.359” and satisfies this requirement.
@@ -132,10 +135,10 @@ Table [[tab:allowable_stress]] summarizes the materials used and the allowable s
 #+CAPTION: Materials and Allowable Stress Values
 #+NAME: tab:allowable_stress
 #+RESULTS:
-| Component          | Material | B31.3 Table A-1 Allowable Stress [psi] |
-|--------------------+----------+----------------------------------------|
-| Copper tube Type K | Copper   |                                   6000 |
-|                    |          |                                        |
+| Component          | Material | Allowable Stress, psi |
+|--------------------+----------+-----------------------|
+| Copper tube Type K | copper   |                  6000 |
+|                    |          |                       |
 
 * Piping design and analysis
 The minimum required wall thickness is calculated using B 31.3 304.1.2 and is shown in Table [[tab:pipe_wall]].
@@ -190,28 +193,39 @@ print(table)
 
 All piping complies with this requirement.
 
+#+begin_src python :results replace
+  if listed:
+    print('Listed components manufactured in accordance with the codes required by B31.3 Table 326.1 are presented in Table [[tab:listed]].')
+  if unlisted:
+    print('Unlisted components, those not included in B31.3 Table 326.1 as being manufactured according to published standards, installed in the {{{SYS_NAME}}} are shown in Table [[tab:unlisted]].')
+#+end_src
 
-Listed components manufactured in accordance with the codes required by B31.3 Table 326.1 are presented in Table [[tab:listed]].
-#+begin_comment
-Unlisted components, those not included in B31.3 Table 326.1 as being manufactured according to published standards, installed in the {{{SYS_NAME}}} are shown in Table [[tab:unlisted]].
-#+end_comment
+#+RESULTS:
 
 #+begin_comment
 Extensive service experience at Fermilab allows the use of these components in piping systems as per B31.3 Section 304.7.2.
 #+end_comment
 
 #+begin_src python :results table :colnames '("Component" "Source and P/N" "Pressure rating, psig" "Design pressure, psig")
-  table = []
-  table.append(['Elbow', '', 582, f'{P_des.to(ureg.psig).magnitude:.3g}'])
-  print(table)
+  if listed:
+    table = []
+    for element in listed:
+      name = element.__doc__.split('(')[0] + ', ' + str(element.D) + '"'
+      source = element.source
+      P = f'{element.P.to(ureg.psi).magnitude:.3g}'
+      P_des_s = f'{P_des.to(ureg.psig).magnitude:.3g}'
+      table.append((name, source, P, P_des_s))
+    print(table)
 #+end_src
 
 #+CAPTION: Listed piping components.
 #+NAME: tab:listed
 #+RESULTS:
-| Component | Source and P/N | Pressure rating, psig | Design pressure, psig |
-|-----------+----------------+-----------------------+-----------------------|
-| Elbow     |                |                   582 |                   250 |
+| Component    | Source and P/N | Pressure rating, psig | Design pressure, psig |
+|--------------+----------------+-----------------------+-----------------------|
+| Elbow, 0.75" | None           |                   582 |                   250 |
+| Elbow, 1"    | None           |                   494 |                   250 |
+
 
 #+begin_comment
 #+CAPTION: Unlisted piping components.
@@ -234,15 +248,36 @@ H-ZMC-8-8N	4300	60	304.7.2(a) Extensive service experience.
 
 * Pressure relief system
 The {{{SYS_NAME}}} is protected by SV-1601, and SV-1602.
-#+begin_comment
-Supporting calculations are included in Appendix 10.3, page 11.
-#+end_comment
+#+begin_src python
+  @ureg.wraps(ureg.ft**3/ureg.min, [ureg.psig])
+  def circle_seal(P):
+      """Calculate M5100-4M Circle Seal flow capacity"""
+      P1 = 1100 # Set pressure 1, psi
+      F1 = 1600 # Flow of air for P1, SCFM
+      P2 = 400 # Set pressure 2, psi
+      F2 = 600 # Flow of air for P2, SCFM
+      slope = (F1-F2) / (P1-P2)
+      result = 1600 - slope*(1100-P)
+      return result
+
+  print(f'Single relief valve capacity is {circle_seal(P_des):.3g~P}')
+#+end_src
+
+#+begin_src python :results output pp :exports none
+  buffer_gas = ht.ThermState('helium', P=250*ureg.psig, T=300*ureg.K)
+  PRV = ht.piping.Piping(buffer_gas,
+      [ht.piping.Valve(3/4*ureg.inch, 4.8)])
+
+  print(ht.to_scfma(PRV.m_dot(P_out=100*ureg.psig), ht.ThermState('helium', P=100*ureg.psig, T=300*ureg.K)))
+
+
+#+end_src
 
 * Flexibility analysis
 The {{{SYS_NAME}}} is operated at a room temperature thus no flexibility calculations are required.
 
-* Welding and inspection
-All brazing is made and certified by Fermilab. Completed inspection forms are included in the Appendix [[*Weld inspection forms]].
+* Welding and brazing inspection
+All brazing is made and certified by Fermilab. Completed inspection forms are included in the Appendix [[*Inspection forms]].
 
 * Pressure testing
 #+begin_comment
@@ -256,9 +291,6 @@ The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure t
 
 * Appendix
 (Pressure test permits will be appended after this note is approved and the pressure tests are completed.)
-** Weld inspection forms
+** Inspection forms
 ** Pressure testing permits
-** Safety valve supporting calculations
-
-
-** Supporting drawings
+[[./images/pressure_permit.png]]
