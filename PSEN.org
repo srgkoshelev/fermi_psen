@@ -1,9 +1,9 @@
-#+TITLE: IB1 LN2 withdrawal piping system engineering note
+#+TITLE: Quench tanks disconnect piping system engineering note
 #+LATEX_CLASS_OPTIONS: [titlepage]
 #+OPTIONS: toc:nil tex:t
 #+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
 
-#+MACRO: SYS_NAME LN2 withdrawal piping
+#+MACRO: SYS_NAME Quench tanks disconnect
 #+MACRO: P_ID F00304970
 
 #+TOC: headlines 2
@@ -48,15 +48,15 @@ killall python
   copper.T_min = Q_('-452 degF')
 
   P_des = 100 * ureg.psig
-  T_des = 77 * ureg.K
+  T_des = 300 * ureg.K
 
-  pipes = [ht.piping.Pipe(0.5, SCH=10)
+  pipes = [ht.piping.Pipe(1)
            ]
   for pipe in pipes:
       pipe.material = steel
   listed = [Component('Cap', pipes[0].D, None, 0*ureg.psi),
   ]
-  unlisted = []
+  unlisted = [Component('Valve', '1/4', None, 0*ureg.psi)]
 #+end_src
 
 #+RESULTS:
@@ -64,7 +64,10 @@ killall python
 * Introduction
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
 
-During the 2020 IB1 Shutdown the LN2 withdrawal line inside IB1 will be removed. Remaining piping will be capped off at the tee (see [[fig:P_ID]] for details).
+During the 2020 IB1 Shutdown the TeV Quench tanks will be disconnected from the IB1 cryo system. Connection piping will be cut off and capped off at following locations (see [[fig:P_ID]] for details).
+1. HV-XXXX
+1. HV-XXXX
+1. HV-XXXX
 
 The design pressure for {{{SYS_NAME}}} is src_python{print(f'{P_des.to(ureg.psig):.3g~}')}.
 
@@ -73,7 +76,7 @@ The P&ID of the {{{SYS_NAME}}} is shown in Figure [[fig:P_ID]].
 
 #+CAPTION: The {{{SYS_NAME}}} as shown on P&ID {{{P_ID}}}.
 #+NAME: fig:P_ID
-[[./images/P_ID.png]]
+[[./images/P_ID]]
 
 * Design codes and evaluation criteria
 All the piping must meet all of the requirements of Section 5031.1 of the Fermilab ES&H Manual.
@@ -102,22 +105,12 @@ The respective allowable stress from Table A-1 of ASME B31.3 will be used in thi
 
 The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(ureg.K):.3g~} ({T_des.to(ureg.degF):.3g})')}.
 #+begin_src python
-  aust_steel = ['304SS', '304LSS', '316SS', '321SS']
-  Col_A = pipes[0].material.T_min < T_des
-  Box_A4 = pipes[0].material.name in aust_steel and T_des < -20*ureg.degF
-  Note_5 = all(pipe.wall < 0.098*ureg.inch for pipe in pipes)
-
-  if Col_A:
-    print(f'This is below the minimum temperature listed for any {pipes[0].material.name} pipe or tube.')
-    if Box_A4:
-      print('B31.3 Table 323.2.2 A-4 states that impact testing is required for austenitic stainless steels with design temperatures < -20 F except as provided in Note (5) and Note (6).')
-      if Note_5:
-        print('According to Note 5 of Table 323.2.2, impact testing is not required for this material when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
-        print('All of the tubing and piping with design minimum temperature below -20 F used in the system has a wall thickness of less than 0.098 in. Therefore, impact testing is not required for this piping system.')
-    else:
-      print('This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.')
+  if any(T_des < pipe.material.T_min for pipe in pipes):
+    print('This is below the minimum temperature listed for any stainless steel pipe or tube. According to B31.3 Section 323.2.2, impact testing is required for this material except as stated in Table 323.2.2 Note (6) where impact testing is not required when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
+    if not any(pipe.wall >= 0.098*ureg.inch for pipe in pipes):
+      print('All of the tubing and piping with design minimum temperature below -20 F used in the {{{SYS_NAME}}} has a wall thickness of less than 0.098 in. Therefore, impact testing is not required for this piping system.')
   else:
-    print('*UPDATE DESCRIPTION*')
+    print('This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.')
 
 
 #+end_src
@@ -150,7 +143,7 @@ Table [[tab:allowable_stress]] summarizes the materials used and the allowable s
 |                    |          |                       |
 
 * Piping design and analysis
-The minimum required wall thickness is calculated using B31.3 304.1.2 and is shown in Table [[tab:pipe_wall]].
+The minimum required wall thickness is calculated using B 31.3 304.1.2 and is shown in Table [[tab:pipe_wall]].
 
 $$t=\frac{PD}{2(SEW+PY)}$$
 #+begin_src python :results table :colnames '("Piping/tubing size	D, in"	"Min wall thick, in"	"Act thick, in"	"Wall thick ratio")
@@ -277,7 +270,7 @@ The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
   if CATEGORY == 'Normal':
       print('345.5.4.')
       print(f'For a pneumatic test, the test pressure is 110% of the design pressure ({P_des:.3g~}) or {1.1*P_des:.3g~}.')
-      print('The test medium will be gaseous nitrogen. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
+      print('The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
   if CATEGORY == 'D':
       print('345.7 initial service leak test in accordance with 345.1 (a) for Category D piping.')
 #+end_src
@@ -286,10 +279,10 @@ The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
 The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure that its operation presents no hazards to personnel.
 
 * Appendix
+(Pressure test permits will be appended after this note is approved and the pressure tests are completed.)
 ** Inspection forms
 #+begin_src python
   if CATEGORY == 'Normal':
       print('** Pressure testing permits')
-      print('(Pressure test permits will be appended after this note is approved and the pressure tests are completed.)')
       print('[[./images/pressure_permit.png]]')
 #+end_src
