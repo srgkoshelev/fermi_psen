@@ -1,10 +1,10 @@
-#+TITLE: Purifier panel connection piping system engineering note
+#+TITLE: IB1 LN2 withdrawal piping system engineering note
 #+LATEX_CLASS_OPTIONS: [titlepage]
 #+OPTIONS: toc:nil tex:t
 #+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
 
-#+MACRO: SYS_NAME purifier panel connection piping
-#+MACRO: P_ID F00304972
+#+MACRO: SYS_NAME LN2 withdrawal piping
+#+MACRO: P_ID F00304970
 
 #+TOC: headlines 2
 \newpage{}
@@ -17,7 +17,7 @@ killall python
 #+begin_src python :results none :exports none
   import heat_transfer as ht
   from collections import namedtuple
-  Elbow = namedtuple('Elbow', ['D', 'source', 'P'])
+  Component = namedtuple('Component', ['name', 'size', 'source', 'P'])
   ureg = ht.ureg
   Q_ = ht.Q_
 
@@ -47,15 +47,14 @@ killall python
   copper.S = Q_('6000 psi')
   copper.T_min = Q_('-452 degF')
 
-  P_des = 250 * ureg.psig
-  T_des = 4.5 * ureg.K
+  P_des = 100 * ureg.psig
+  T_des = 77 * ureg.K
 
-  pipes = [ht.piping.CopperTube(3/4, 'Type K'),
-           ht.piping.CopperTube(1, 'Type K')]
+  pipes = [ht.piping.Pipe(0.5, SCH=10)
+           ]
   for pipe in pipes:
-      pipe.material = copper
-  listed = [Elbow(3/4, None, 582*ureg.psi),
-            Elbow(1, None, 494*ureg.psi)
+      pipe.material = steel
+  listed = [Component('Cap', pipes[0].D, None, 0*ureg.psi),
   ]
   unlisted = []
 #+end_src
@@ -65,26 +64,26 @@ killall python
 * Introduction
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
 
-The {{{SYS_NAME}}} consists of copper tubing and fittings connecting the purifier panel to different part of IB1 cryosystem, such as: storage dewar, distribution box, horizontal test stands, Mycom and Sullair compressor suction, and buffer tanks. Buffer tanks are associated with the highest pressure the {{{SYS_NAME}}} is exposed to driving the design pressure.
-
-The only source of the cold gas in the {{{SYS_NAME}}} is a 10 ft copper line coming from the storage dewar. This line is only in use when the IB1 cryo system is in shutdown and the storage dewar needs to be purged. Based on extensive operating experience the piping gets cold in the vicinity of HV-315 on top of the Dewar.
+During the 2020 IB1 Shutdown the LN2 withdrawal line inside IB1 will be removed. Remaining piping will be capped off at the tee (see [[fig:P_ID]] for details).
 
 The design pressure for {{{SYS_NAME}}} is src_python{print(f'{P_des.to(ureg.psig):.3g~}')}.
 
 
-The P&ID of the {{{SYS_NAME}}} is shown in Figure [[fig:P_ID]]. Drawings of the standalone bayonet and the U-tube a presented in Appendix 10.4, page 11.
+The P&ID of the {{{SYS_NAME}}} is shown in Figure [[fig:P_ID]].
 
 #+CAPTION: The {{{SYS_NAME}}} as shown on P&ID {{{P_ID}}}.
 #+NAME: fig:P_ID
-[[./images/P_ID]]
+[[./images/P_ID.png]]
 
 * Design codes and evaluation criteria
 All the piping must meet all of the requirements of Section 5031.1 of the Fermilab ES&H Manual.
 #+begin_src python
   print('This section states that piping systems containing gas at a pressure ')
   if P_des > 150 * ureg.psig or T_des < -20 * ureg.degF:
+      CATEGORY = 'Normal'
       print('above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service ')
   else:
+      CATEGORY = 'D'
       print('below 150 psig and a temperature above -20 Fahrenheit fall under the Category D Fluid Service ')
   print('and shall adhere to the requirements of the ASME Process Piping Code B31.3.')
 #+end_src
@@ -103,12 +102,22 @@ The respective allowable stress from Table A-1 of ASME B31.3 will be used in thi
 
 The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(ureg.K):.3g~} ({T_des.to(ureg.degF):.3g})')}.
 #+begin_src python
-  if any(T_des < pipe.material.T_min for pipe in pipes):
-    print('This is below the minimum temperature listed for any stainless steel pipe or tube. According to B31.3 Section 323.2.2, impact testing is required for this material except as stated in Table 323.2.2 Note (6) where impact testing is not required when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
-    if not any(pipe.wall >= 0.098*ureg.inch for pipe in pipes):
-      print('All of the tubing and piping with design minimum temperature below -20 F used in the {{{SYS_NAME}}} has a wall thickness of less than 0.098 in. Therefore, impact testing is not required for this piping system.')
+  aust_steel = ['304SS', '304LSS', '316SS', '321SS']
+  Col_A = pipes[0].material.T_min < T_des
+  Box_A4 = pipes[0].material.name in aust_steel and T_des < -20*ureg.degF
+  Note_5 = all(pipe.wall < 0.098*ureg.inch for pipe in pipes)
+
+  if Col_A:
+    print(f'This is below the minimum temperature listed for any {pipes[0].material.name} pipe or tube.')
+    if Box_A4:
+      print('B31.3 Table 323.2.2 A-4 states that impact testing is required for austenitic stainless steels with design temperatures < -20 F except as provided in Note (5) and Note (6).')
+      if Note_5:
+        print('According to Note 5 of Table 323.2.2, impact testing is not required for this material when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
+        print('All of the tubing and piping with design minimum temperature below -20 F used in the system has a wall thickness of less than 0.098 in. Therefore, impact testing is not required for this piping system.')
+    else:
+      print('This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.')
   else:
-    print('This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.')
+    print('*UPDATE DESCRIPTION*')
 
 
 #+end_src
@@ -141,7 +150,7 @@ Table [[tab:allowable_stress]] summarizes the materials used and the allowable s
 |                    |          |                       |
 
 * Piping design and analysis
-The minimum required wall thickness is calculated using B 31.3 304.1.2 and is shown in Table [[tab:pipe_wall]].
+The minimum required wall thickness is calculated using B31.3 304.1.2 and is shown in Table [[tab:pipe_wall]].
 
 $$t=\frac{PD}{2(SEW+PY)}$$
 #+begin_src python :results table :colnames '("Piping/tubing size	D, in"	"Min wall thick, in"	"Act thick, in"	"Wall thick ratio")
@@ -197,7 +206,7 @@ All piping complies with this requirement.
   if listed:
     print('Listed components manufactured in accordance with the codes required by B31.3 Table 326.1 are presented in Table [[tab:listed]].')
   if unlisted:
-    print('Unlisted components, those not included in B31.3 Table 326.1 as being manufactured according to published standards, installed in the {{{SYS_NAME}}} are shown in Table [[tab:unlisted]].')
+    print('Unlisted components, those not included in B31.3 Table 326.1 as being manufactured according to published standards, installed in the system are shown in Table [[tab:unlisted]].')
 #+end_src
 
 #+RESULTS:
@@ -207,15 +216,24 @@ Extensive service experience at Fermilab allows the use of these components in p
 #+end_comment
 
 #+begin_src python :results table :colnames '("Component" "Source and P/N" "Pressure rating, psig" "Design pressure, psig")
-  if listed:
+  def component_table(components):
+    """Prepare a table of listed/unlisted components.
+
+    Parameters
+    ----------
+    components : list
+    """
     table = []
-    for element in listed:
-      name = element.__doc__.split('(')[0] + ', ' + str(element.D) + '"'
-      source = element.source
-      P = f'{element.P.to(ureg.psi).magnitude:.3g}'
+    for component in components:
+      name = component.name + ', ' + str(component.size) + '"'
+      source = component.source
+      P = f'{component.P.to(ureg.psi).magnitude:.3g}'
       P_des_s = f'{P_des.to(ureg.psig).magnitude:.3g}'
       table.append((name, source, P, P_des_s))
-    print(table)
+    return table
+
+  if listed:
+    print(component_table(listed))
 #+end_src
 
 #+CAPTION: Listed piping components.
@@ -227,70 +245,51 @@ Extensive service experience at Fermilab allows the use of these components in p
 | Elbow, 1"    | None           |                   494 |                   250 |
 
 
-#+begin_comment
+#+begin_src python :results table :colnames '("Component" "Source and P/N" "Pressure rating, psig" "Design pressure, psig")
+  if unlisted:
+    print(component_table(unlisted))
+#+end_src
+
 #+CAPTION: Unlisted piping components.
 #+NAME: tab:unlisted
-
-Component	Source and part number	Internal pressure rating [psig]	System design internal pressure [psig]	Comment
-Braided hose	Hose Master Annuflex #AF4750 3/4“ 321 single wire braid	898	60	304.7.2(a) Extensive service experience.
-1” x 1/2" Hex reducing bushing	McMaster Carr pt# 4464K644	3000	60	304.7.2(a) Extensive service experience.
-Half coupling 1”	McMaster Carr pt# 45525K576	1270	60	304.7.2(a) Extensive service experience.
-Union, 1/2” NPS	HART ind P/N 3333-3-V-304L	3000	60	304.7.2(a) Extensive service experience.
-Socket weld gland ZCR	Hy-lok
-H-ZSG-8S	3500	60	304.7.2(a) Extensive service experience.
-Male Socket weld Gland	Hy-lok
-H-ZGM-8-B-SM6L	3500	60	304.7.2(a) Extensive service experience.
-Vacuum coupling sleeve	Fermilab	67001	60	304.7.2(a) Extensive service experience.
-ZCR NPT 1/2” connector	Hy-lok
-H-ZMC-8-8N	4300	60	304.7.2(a) Extensive service experience.
-  Internal design gauge pressure according to B 31.3 304.1.2(a) based on minimal wall thickness.
-#+end_comment
+#+RESULTS:
+| Component    | Source and P/N | Pressure rating, psig | Design pressure, psig |
+|--------------+----------------+-----------------------+-----------------------|
+| Elbow, 0.75" | None           |                   582 |                   250 |
+| Elbow, 1"    | None           |                   494 |                   250 |
 
 * Pressure relief system
-The {{{SYS_NAME}}} is protected by SV-1601, and SV-1602.
-#+begin_src python
-  @ureg.wraps(ureg.ft**3/ureg.min, [ureg.psig])
-  def circle_seal(P):
-      """Calculate M5100-4M Circle Seal flow capacity"""
-      P1 = 1100 # Set pressure 1, psi
-      F1 = 1600 # Flow of air for P1, SCFM
-      P2 = 400 # Set pressure 2, psi
-      F2 = 600 # Flow of air for P2, SCFM
-      slope = (F1-F2) / (P1-P2)
-      result = 1600 - slope*(1100-P)
-      return result
-
-  print(f'Single relief valve capacity is {circle_seal(P_des):.3g~P}')
-#+end_src
-
-#+begin_src python :results output pp :exports none
-  buffer_gas = ht.ThermState('helium', P=250*ureg.psig, T=300*ureg.K)
-  PRV = ht.piping.Piping(buffer_gas,
-      [ht.piping.Valve(3/4*ureg.inch, 4.8)])
-
-  print(ht.to_scfma(PRV.m_dot(P_out=100*ureg.psig), ht.ThermState('helium', P=100*ureg.psig, T=300*ureg.K)))
-
-
-#+end_src
+The {{{SYS_NAME}}} doesn't introduce any changes to the piping pressure relief. All modified parts are protected by respective reliefs of the IB1 cryosystem.
 
 * Flexibility analysis
-The {{{SYS_NAME}}} is operated at a room temperature thus no flexibility calculations are required.
+The {{{SYS_NAME}}} creates no additional constraints to IB1 piping.
 
 * Welding and brazing inspection
-All brazing is made and certified by Fermilab. Completed inspection forms are included in the Appendix [[*Inspection forms]].
+All welding is made and certified by Fermilab. Completed inspection forms are included in the Appendix [[*Inspection forms]].
 
 * Pressure testing
 #+begin_comment
 345.2.5 for jacketed piping
 67.5 psig with insulating vacuum
 #+end_comment
-The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3 345.5.4. For a pneumatic test, the test pressure is 110% of the design pressure (src_python{print(f'{P_des:.3g~}')}) or src_python{print(f'{1.1*P_des:.3g~}')}. The test medium will be gaseous helium.  After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
+The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
+#+begin_src python
+  if CATEGORY == 'Normal':
+      print('345.5.4.')
+      print(f'For a pneumatic test, the test pressure is 110% of the design pressure ({P_des:.3g~}) or {1.1*P_des:.3g~}.')
+      print('The test medium will be gaseous nitrogen. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
+  if CATEGORY == 'D':
+      print('345.7 initial service leak test in accordance with 345.1 (a) for Category D piping.')
+#+end_src
 
 * Summary
 The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure that its operation presents no hazards to personnel.
 
 * Appendix
-(Pressure test permits will be appended after this note is approved and the pressure tests are completed.)
 ** Inspection forms
-** Pressure testing permits
-[[./images/pressure_permit.png]]
+#+begin_src python
+  if CATEGORY == 'Normal':
+      print('** Pressure testing permits')
+      print('(Pressure test permits will be appended after this note is approved and the pressure tests are completed.)')
+      print('[[./images/pressure_permit.png]]')
+#+end_src
