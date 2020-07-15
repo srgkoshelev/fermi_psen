@@ -2,6 +2,7 @@
 #+LATEX_CLASS_OPTIONS: [titlepage]
 #+OPTIONS: toc:nil tex:t
 #+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
+#+LATEX_HEADER: \usepackage{xcolor}
 
 #+MACRO: SYS_NAME purifier panel connection piping
 #+MACRO: P_ID F00304972
@@ -294,3 +295,97 @@ The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure t
 ** Inspection forms
 ** Pressure testing permits
 [[./images/pressure_permit.png]]
+*** Pressure test procedure
+**** Safety
+The areas around the piping system must be roped off or barricaded to keep personnel out of the test area during the execution of this procedure.  Signs are to be posted warning personnel that a pressure test is in progress and to keep out of the area (per FESHM 5034 7.1.b.).  Follow Fermilab FESHM guidelines for proper PPE.
+
+**** Hazards
+This is a pneumatic pressure test utilizing compressed helium gas. There is potential for:
+-	Exposure to an asphyxiant
+-	Sudden release of pressure from piping
+-	Striking hazard due to failure of piping or piping components
+
+Ensure that the piping is securely mounted (per FESHM 5034 7.1.b.).
+
+**** Test Equipment
+Refer to Figure [[fig:setup]] for the layout of the test equipment.  The specific requirements for the components are listed in Table [[tab:equipment]]. The test equipment should be tested to be leak free before attaching it to the piping for the pressure test.
+
+-	The relief valve must be tested prior to performing the pressure test procedure to ensure that it is operating properly (per FESHM 5034 7.2.d.).
+-	The pressure test gauge (PI-3) calibration should be up-to-date (per FESHM 5034 7.2.b.).
+
+
+#+NAME: fig:setup
+#+CAPTION: P&ID of the Test Equipment
+[[./images/Pressure_test_setup.png]]
+
+#+NAME: tab:equipment
+#+CAPTION: Test Equipment Component Specification
+| Component | Description           | Range                        |
+| PI-1      | Supply Pressure Gauge | 400 psig                     |
+| PSV-1     | Safety Relief Valve   | 300 psig (cracking pressure) |
+| PI-3      | Test Pressure Gauge   | 400 psig                     |
+
+**** Test Preparation
+***** Isolate the piping from other portions of the facility.
+1. Remove reliefs and plug pipe outlets:
+   - [ ] PSV-1661
+   - [ ] PSV-1662
+   - [ ] PSV-1601
+   - [ ] PSV-1602
+2. Disconnect pressure gauges:
+   - [ ] \color{red}TBD
+3. Ensure following purifier panel valves *open*:
+   - [ ] HV-1666
+   - [ ] HV-1627A/B
+   - [ ] HV-1669A/B
+   - [ ] HV-1670A/B
+   - [ ] HV-1665A/B
+   - [ ] HV-1664A/B
+   - [ ] HV-1661A/B
+   - [ ] HV-1632A/B
+   - [ ] HV-1631A/B
+   - [ ] HV-1663A/B
+   - [ ] HV-401 ALT (any direction)
+4. Ensure following valves *closed*:
+   - Purifier panel
+     - [ ] HV-1662
+     - [ ] HV-1603
+     - [ ] HV-1666A
+     - [ ] HV-1626A/B
+     - [ ] HV-1612A/B
+     - [ ] HV-1625A/B
+     - [ ] HV-1668A/B
+     - [ ] HV-1633A/B
+     - [ ] HV-1630A/B
+     - [ ] HV-1629A/B
+     - [ ] HV-1628A/B
+   - Turbine scrub
+     - [ ] HV-34
+   - Compressor middle stage
+     - [ ] PCV-1406
+   - Dist box
+     - [ ] HV-401
+     - [ ] HV-8 ALT
+     - [ ] HV-1761
+   - Mycom suction
+     - [ ] YCV-1703
+     - [ ] HV-1703-C
+   - Storage dewar
+     - [ ] HV-315
+   - Buffer tanks
+     - [ ] HV-140
+***** Connect Test Equipment
+1. Setup the test equipment in a safe location outside the roped off area.
+2. Install the pressure test gauge PI-3.
+3. Connect the test gas connection from MV-3.
+***** Perform the pressure test according to section [[*Test Procedure]]
+***** Switch HV-401 ALT to alternative direction
+***** Perform the pressure test according to section [[*Test Procedure]]
+**** Test Procedure
+During this test procedure, the pressure will be increased in steps waiting at each step to verify that the pressure remains constant.  If at any time a leak is suspected, reduce the pressure to half of the value for the current step and check for leaks with the soap bubble method.  When a leak is found, the piping must be depressurized before repairing the leak.  (per FESHM 5034 7.3.b. and 3.c.)
+
+1. Increase the pressure in the piping to 25 psig.  Wait 5 minutes.  If no leak is detected, proceed to the next step.
+2. Increase the pressure to test pressure with increment of no more than 50 psig.  Wait 5 minutes at each step.  If no leak is detected proceed to next pressure increase step. After reaching the test pressure wait 10 minutes.  If no leak is evident, reduce pressure to design pressure and check all seams and fittings with soap bubble or alternate leak detection method.  (per FESHM 5034 7.3.a and B31.3 345.5.5)
+3. When all leak checks have been performed and no leaks exist, depressurize the piping.
+4. Restore the system back to its original configuration.
+5. Remove the rope/barricades and signs.
