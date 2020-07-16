@@ -1,12 +1,11 @@
-#+TITLE: IB1 Purifier panel connection piping amendment \newline {{{DOC_NUM}}}
+#+TITLE: {{{SYS_NAME}}} amendment \newline {{{DOC_NUM}}}
 #+LATEX_CLASS_OPTIONS: [titlepage]
 #+LATEX_HEADER: \usepackage{xcolor}
 #+OPTIONS: toc:nil tex:t
 #+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
 
-#+MACRO: SYS_NAME purifier panel connection piping
-#+MACRO: DOC_NUM EN03624
-#+MACRO: P_ID F00304972
+#+MACRO: SYS_NAME IB1 GN2 supply piping
+#+MACRO: DOC_NUM EN04261
 
 #+TOC: headlines 2
 \newpage{}
@@ -20,6 +19,7 @@ killall python
   import heat_transfer as ht
   from collections import namedtuple
   Elbow = namedtuple('Elbow', ['D', 'source', 'P'])
+  Cap = namedtuple('Cap', ['D', 'source', 'P'])
   ureg = ht.ureg
   Q_ = ht.Q_
 
@@ -49,15 +49,19 @@ killall python
   copper.S = Q_('6000 psi')
   copper.T_min = Q_('-452 degF')
 
-  P_des = 250 * ureg.psig
+  # TODO Separate inputs from setups
+  P_des = 100 * ureg.psig
   T_des = 32 * ureg.degF
 
-  pipes = [ht.piping.CopperTube(3/4, 'Type K', L=10*ureg.ft),
-           ht.piping.CopperTube(1, 'Type K', L=6*15*ureg.ft)]
+  pipes = [ht.piping.CopperTube(3/4, 'Type K')
+           ]
+  E = 1
+  W = 1
+  Y = 0.4
   for pipe in pipes:
       pipe.material = copper
-  listed = [Elbow(3/4, None, 582*ureg.psi),
-            Elbow(1, None, 494*ureg.psi)
+      pipe.update(S=pipe.material.S, E=E, W=W, Y=Y)
+  listed = [Cap(pipes[0].D, 'NIBCO 5P122', pipes[0].pressure_rating()),
   ]
   unlisted = []
   print([(str(pipe), f'{pipe.L.to(ureg.ft):.2g~}', f'{pipe.volume.to(ureg.ft**3):.2g~}') for pipe in pipes])
@@ -68,21 +72,15 @@ killall python
 #+end_src
 
 #+RESULTS:
-: Python 3.7.0 (default, Aug  2 2018, 21:46:10)
-: [Clang 9.1.0 (clang-902.0.39.2)] on darwin
-: Type "help", "copyright", "credits" or "license" for more information.
-: [('0.75" Copper tube Type K', '10 ft', '0.03 ft ** 3'), ('1" Copper tube Type K', '90 ft', '0.49 ft ** 3')]
-: python.el: native completion setup failed, <class 'ImportError'>: dlopen(/Users/skoshelev/.pyenv/versions/3.7.0/lib/python3.7/lib-dynload/readline.cpython-37m-darwin.so, 2): Library not loaded: /usr/local/opt/readline/lib/libreadline.7.dylib
-:   Referenced from: /Users/skoshelev/.pyenv/versions/3.7.0/lib/python3.7/lib-dynload/readline.cpython-37m-darwin.so
-:   Reason: image not found
+: [('0.75" Copper tube Type K', '0 ft', '0 ft ** 3')]
 
 * Introduction
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
 The current version of the document is maintained in Team Center {{{DOC_NUM}}}.
 
-The {{{SYS_NAME}}} consists of copper tubing and fittings connecting the purifier panel to different part of IB1 cryosystem, such as: storage dewar, distribution box, horizontal test stands, Mycom and Sullair compressor suction, and buffer tanks. Buffer tanks are associated with the highest pressure the {{{SYS_NAME}}} is exposed to driving the design pressure.
+The change to {{{SYS_NAME}}} described in this document is removal of part of the tubing and brazing a cap to isolate the line. LN2 system at IB1 is rated
+src_python{print(f'{P_des:.3g~}')}.
 
-The only source of the cold gas in the {{{SYS_NAME}}} is a 10 ft copper line coming from the storage dewar. This line is only in use when the IB1 cryo system is in shutdown and the storage dewar needs to be purged. Based on extensive operating experience the piping gets cold in the vicinity of HV-315 on top of the Dewar.
 
 The design temperature is chosen to be
 src_python{print(f'{T_des.to(ureg.K):.3g~}')}.
@@ -90,20 +88,15 @@ src_python{print(f'{T_des.to(ureg.K):.3g~}')}.
 The design pressure for {{{SYS_NAME}}} is
 src_python{print(f'{P_des.to(ureg.psig):.3g~}')}.
 
-
-The P&ID of the {{{SYS_NAME}}} is shown in Figure [[fig:P_ID]].
-
-#+CAPTION: The {{{SYS_NAME}}} as shown on P&ID {{{P_ID}}}.
-#+NAME: fig:P_ID
-[[./images/P_ID.png]]
-
 * Design codes and evaluation criteria
 All the piping must meet all of the requirements of Section 5031.1 of the Fermilab ES&H Manual.
 #+begin_src python
   print('This section states that piping systems containing gas at a pressure ')
   if P_des > 150 * ureg.psig or T_des < -20 * ureg.degF:
+      CATEGORY = 'Normal'
       print('above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service ')
   else:
+      CATEGORY = 'D'
       print('below 150 psig and a temperature above -20 Fahrenheit fall under the Category D Fluid Service ')
   print('and shall adhere to the requirements of the ASME Process Piping Code B31.3.')
 #+end_src
@@ -133,8 +126,6 @@ The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{
 #+end_src
 
 #+RESULTS:
-
-According to Table 323.2.2, box A-6, there are no additional requirements for HAZ and the braze metal unless filler metal composition is outside the range for base metal composition. For copper brazing the filler metal will be significantly different from the base metal so the impact test will be required. Except for as stated in Note 5, when the maximum obtainable specimen has a width along the notch of less than 0.098 in. All of the piping in {{{SYS_NAME}}} satisfies the requirement of Note 5 (see Table [[tab:pipe_wall]]) and therefore is exempt from testing.
 
 #+begin_comment
 It should also be noted that Fermilab has extensive service experience using the 300 series stainless steel at liquid nitrogen temperatures and below.
@@ -166,12 +157,8 @@ The minimum required wall thickness is calculated using B 31.3 304.1.2 and is sh
 
 $$t=\frac{PD}{2(SEW+PY)}$$
 #+begin_src python :results table :colnames '("Piping/tubing size	D, in"	"Min wall thick, in"	"Act thick, in"	"Wall thick ratio")
-  E = 1
-  W = 1
-  Y = 0.4
   table = []
   for pipe in pipes:
-    pipe.update(S=pipe.material.S, E=E, W=W, Y=Y)
     D = str(pipe.D) + '", ' + pipe.type
     t_min = pipe.pressure_design_thick(P_des)
     t_min_s = f'{t_min.to(ureg.inch).magnitude:.3g}'
@@ -268,164 +255,32 @@ H-ZMC-8-8N	4300	60	304.7.2(a) Extensive service experience.
 #+end_comment
 
 * Pressure relief system
-The {{{SYS_NAME}}} is protected by SV-1601, and SV-1602.
-#+begin_src python
-  @ureg.wraps(ureg.ft**3/ureg.min, [ureg.psig])
-  def circle_seal(P):
-      """Calculate M5100-4M Circle Seal flow capacity"""
-      P1 = 1100 # Set pressure 1, psi
-      F1 = 1600 # Flow of air for P1, SCFM
-      P2 = 400 # Set pressure 2, psi
-      F2 = 600 # Flow of air for P2, SCFM
-      slope = (F1-F2) / (P1-P2)
-      result = 1600 - slope*(1100-P)
-      return result
-
-  print(f'Single relief valve capacity is {circle_seal(P_des):.3g~P}')
-#+end_src
-
-#+begin_src python :results output pp :exports none
-  buffer_gas = ht.ThermState('helium', P=250*ureg.psig, T=300*ureg.K)
-  PRV = ht.piping.Piping(buffer_gas,
-      [ht.piping.Valve(3/4*ureg.inch, 4.8)])
-
-  print(ht.to_scfma(PRV.m_dot(P_out=100*ureg.psig), ht.ThermState('helium', P=100*ureg.psig, T=300*ureg.K)))
-
-
-#+end_src
-
+No changes to relief system is done with this change.
 * Flexibility analysis
 The {{{SYS_NAME}}} is operated at a room temperature thus no flexibility calculations are required.
-
 * Welding and brazing inspection
-All brazing is made and certified by Fermilab. Completed inspection forms are included in the Appendix [[*Inspection forms]].
+All welding is made by Fermilab. Completed inspection forms are included in the Appendix [[*Inspection forms]].
 
 * Pressure testing
 #+begin_comment
 345.2.5 for jacketed piping
 67.5 psig with insulating vacuum
 #+end_comment
-The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3 345.5.4. For a pneumatic test, the test pressure is 110% of the design pressure (src_python{print(f'{P_des:.3g~}')}) or src_python{print(f'{P_test:.3g~}')}. The test medium will be gaseous helium.  After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
-Procedure for pressure testing of {{{SYS_NAME}} is attached in Appendix [[*Pressure testing procedure]].
+The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
+#+begin_src python
+  if CATEGORY == 'Normal':
+      print('345.5.4.')
+      print(f'For a pneumatic test, the test pressure is 110% of the design pressure ({P_des:.3g~}) or {1.1*P_des:.3g~}.')
+      print('The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
+  if CATEGORY == 'D':
+      print('345.7 initial service leak test in accordance with 345.1 (a) for Category D piping.')
+#+end_src
 * Summary
 The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure that its operation presents no hazards to personnel.
-
 * Appendix
-(Pressure test permits will be appended after this note is approved and the pressure tests are completed.)
 ** Inspection forms
-** Pressure testing permits
-[[./images/pressure_permit.png]]
-
-** Pressure testing procedure
-*** Safety
-The areas around the piping system must be roped off or barricaded to keep personnel out of the test area during the execution of this procedure.  Signs are to be posted warning personnel that a pressure test is in progress and to keep out of the area (per FESHM 5034 7.1.b.).  Follow Fermilab FESHM guidelines for proper PPE.
-
-*** Hazards
-This is a pneumatic pressure test utilizing compressed
-src_python{print(f'{pt_fluid_name}')}
-gas. There is potential for:
-- Exposure to an asphyxiant
-- Sudden release of pressure from piping
-- Striking hazard due to failure of piping or piping components
-The pressure test area will be roped off at a radius larger than an estimated blast radius (see Table [[tab:blast_radius]]).
-#+begin_src python :results table :colnames '("Test fluid" "Stored energy, kJ" "Blast radius, m")
-  piping = ht.piping.Piping(pt_fluid)
-  piping.add(*pipes)
-  E_stored = ht.stored_energy(piping)
-  blast_radius = ht.blast_radius(E_stored)
-  print([[str(piping.fluid), f'{E_stored.to(ureg.kJ).magnitude:.3g}',
-          f'{max(blast_radius).to(ureg.m).magnitude:.3g}']])
+#+begin_src python
+  if CATEGORY == 'Normal':
+      print('** Pressure testing permits')
+      print('[[./images/pressure_permit.png]]')
 #+end_src
-
-#+CAPTION: Safety radius
-#+NAME: tab:blast_radius
-#+RESULTS:
-| Test fluid                           | Stored energy     | Blast radius |
-|--------------------------------------+-------------------+--------------|
-| Helium at T = 293 K and P = 290 psi. | 2.25e+04 ft * lbf | 15.9 ft      |
-|                                      |                   |              |
-
-Ensure that the piping is securely mounted (per FESHM 5034 7.1.b.).
-
-*** Test Equipment
-Refer to Figure [[fig:setup]] for the layout of the test equipment.  The specific requirements for the components are listed in Table [[tab:equipment]]. The test equipment should be tested to be leak free before attaching it to the piping for the pressure test.
-
--	The relief valve must be tested prior to performing the pressure test procedure to ensure that it is operating properly (per FESHM 5034 7.2.d.).
--	The pressure test gauge (PI-3) calibration should be up-to-date (per FESHM 5034 7.2.b.).
-
-
-#+NAME: fig:setup
-#+CAPTION: P&ID of the Test Equipment
-[[./images/Pressure_test_setup.png]]
-
-#+NAME: tab:equipment
-#+CAPTION: Test Equipment Component Specification
-| Component | Description           | Range                        |
-| PI-1      | Supply Pressure Gauge | 400 psig                     |
-| PSV-1     | Safety Relief Valve   | 300 psig (cracking pressure) |
-| PI-3      | Test Pressure Gauge   | 400 psig                     |
-
-*** Test Preparation
-**** Isolate the piping from other portions of the facility.
-1. Remove reliefs and plug pipe outlets:
-   - [ ] PSV-1661
-   - [ ] PSV-1662
-   - [ ] PSV-1601
-   - [ ] PSV-1602
-2. Disconnect pressure gauges:
-   - [ ] \color{red}TBD
-3. Ensure following purifier panel valves *open*:
-   - [ ] HV-1666
-   - [ ] HV-1627A/B
-   - [ ] HV-1669A/B
-   - [ ] HV-1670A/B
-   - [ ] HV-1665A/B
-   - [ ] HV-1664A/B
-   - [ ] HV-1661A/B
-   - [ ] HV-1632A/B
-   - [ ] HV-1631A/B
-   - [ ] HV-1663A/B
-   - [ ] HV-401 ALT (any direction)
-4. Ensure following valves *closed*:
-   - Purifier panel
-     - [ ] HV-1662
-     - [ ] HV-1603
-     - [ ] HV-1666A
-     - [ ] HV-1626A/B
-     - [ ] HV-1612A/B
-     - [ ] HV-1625A/B
-     - [ ] HV-1668A/B
-     - [ ] HV-1633A/B
-     - [ ] HV-1630A/B
-     - [ ] HV-1629A/B
-     - [ ] HV-1628A/B
-   - Turbine scrub
-     - [ ] HV-34
-   - Compressor middle stage
-     - [ ] PCV-1406
-   - Dist box
-     - [ ] HV-401
-     - [ ] HV-8 ALT
-     - [ ] HV-1761
-   - Mycom suction
-     - [ ] YCV-1703
-     - [ ] HV-1703-C
-   - Storage dewar
-     - [ ] HV-315
-   - Buffer tanks
-     - [ ] HV-140
-**** Connect Test Equipment
-1. Setup the test equipment in a safe location outside the roped off area.
-2. Install the pressure test gauge PI-3.
-3. Connect the test gas connection from MV-3.
-**** Perform the pressure test according to section [[*Pressure Test]].
-**** Switch HV-401 ALT to alternative direction
-**** Perform the pressure test according to section [[*Pressure Test]].
-*** Pressure Test
-During this test procedure, the pressure will be increased in steps waiting at each step to verify that the pressure remains constant.  If at any time a leak is suspected, reduce the pressure to half of the value for the current step and check for leaks with the soap bubble method.  When a leak is found, the piping must be depressurized before repairing the leak.  (per FESHM 5034 7.3.b. and 3.c.)
-
-1. Increase the pressure in the piping to 25 psig.  Wait 5 minutes.  If no leak is detected, proceed to the next step.
-2. Increase the pressure to test pressure with increment of no more than 50 psig.  Wait 5 minutes at each step.  If no leak is detected proceed to next pressure increase step. After reaching the test pressure wait 10 minutes.  If no leak is evident, reduce pressure to design pressure and check all seams and fittings with soap bubble or alternate leak detection method.  (per FESHM 5034 7.3.a and B31.3 345.5.5)
-3. When all leak checks have been performed and no leaks exist, depressurize the piping.
-4. Restore the system back to its original configuration.
-5. Remove the rope/barricades and signs.
