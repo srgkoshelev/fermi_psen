@@ -1,23 +1,54 @@
-#+TITLE: Quench tanks disconnect piping system engineering note
+#+PROPERTY: header-args:python :session *python-QT* :results output raw :exports results
+#+MACRO: SYS_NAME Quench tanks disconnect
+#+MACRO: DOC_NUM EN04241
+#+MACRO: P_ID F00304966
+
+#+TITLE: Quench tanks disconnect piping amendment \newline {{{DOC_NUM}}}
 #+LATEX_CLASS_OPTIONS: [titlepage]
 #+OPTIONS: toc:nil tex:t
-#+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
-
-#+MACRO: SYS_NAME Quench tanks disconnect
-#+MACRO: P_ID F00304970
 
 #+TOC: headlines 2
 \newpage{}
+#+begin_src python :results pp replate :exports none
+  from wand.image import Image
+  import fnmatch
+
+  def make_pics(fname):
+      """Create pictures of a PDF file with a given name"""
+      pics = sorted(fnmatch.filter(os.listdir('images'), f'{fname}*.png'))
+      if not pics:
+          with Image(filename=f'images/{fname}.pdf', resolution = 200) as img:
+              with img.convert('png') as converted:
+                  converted.save(filename=f'images/{fname}_page.png')
+
+      for pic_fn in pics:
+          print(r'#+ATTR_LATEX: :width \textwidth')
+          print(f'[[./images/{pic_fn}]]')
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python
+  make_pics('Cover page')
+#+end_src
+\newpage{}
+* Setup                                                            :noexport:
 #+begin_src sh :exports none
 killall python
 #+end_src
 
 #+RESULTS:
 
-#+begin_src python :results none :exports none
+#+begin_src python :results output pp replace :exports none
   import heat_transfer as ht
-  from collections import namedtuple
-  Component = namedtuple('Component', ['name', 'size', 'source', 'P'])
+
+  class Component:
+      def __init__(self, name, size, source, P):
+          self.name = name
+          self.size = size
+          self.source = source
+          self.P = P
+
   ureg = ht.ureg
   Q_ = ht.Q_
 
@@ -48,35 +79,74 @@ killall python
   copper.T_min = Q_('-452 degF')
 
   P_des = 100 * ureg.psig
-  T_des = 300 * ureg.K
+  T_des = 273 * ureg.K
 
-  pipes = [ht.piping.Pipe(1)
+  E = 0.8
+  W = 1
+  Y = 0.4
+  pipes = [ht.piping.Pipe(1.5, SCH=10),
            ]
   for pipe in pipes:
       pipe.material = steel
-  listed = [Component('Cap', pipes[0].D, None, 0*ureg.psi),
+      pipe.update(S=pipe.material.S, E=E, W=W, Y=Y)
+  cap = ht.piping.Pipe(pipes[0].D, SCH=10)
+  cap.update(S=steel.S, E=E, W=W, Y=Y) # 304 SS, welded construction
+  cap.P = cap.pressure_rating()
+  cap.name = 'Cap, welded'
+  cap.size = cap.D
+  cap.source = 'McMaster 45735K275'
+  outlet = Component('Tee outlet, 304SS', 1/4, 'McMaster 4565T312', 6000*ureg.psi)
+  outlet.OD = 7/8 * ureg.inch
+  outlet.wall = outlet.OD - (7/16*ureg.inch+0.04444*ureg.inch)
+
+  listed = [cap,
+            outlet
   ]
-  unlisted = [Component('Valve', '1/4', None, 0*ureg.psi)]
+  valve = ht.piping.Pipe(0.25*ureg.inch)
+  valve.update(S=steel.S, E=1, W=1, Y=0.4) # 304 SS, seamless
+  valve.name = 'Valve'
+  valve.size = valve.D
+  valve.source = 'Swagelok B-1VM4'
+  valve.P = 2500*ureg.psi
+  unlisted = [valve]
 #+end_src
 
 #+RESULTS:
+: Python 3.7.0 (default, Aug  2 2018, 21:46:10)
+: [Clang 9.1.0 (clang-902.0.39.2)] on darwin
+: Type "help", "copyright", "credits" or "license" for more information.
+: python.el: native completion setup failed, <class 'ImportError'>: dlopen(/Users/skoshelev/.pyenv/versions/3.7.0/lib/python3.7/lib-dynload/readline.cpython-37m-darwin.so, 2): Library not loaded: /usr/local/opt/readline/lib/libreadline.7.dylib
+:   Referenced from: /Users/skoshelev/.pyenv/versions/3.7.0/lib/python3.7/lib-dynload/readline.cpython-37m-darwin.so
+:   Reason: image not found
 
 * Introduction
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
+The current version of the document is maintained in Team Center {{{DOC_NUM}}}.
 
-During the 2020 IB1 Shutdown the TeV Quench tanks will be disconnected from the IB1 cryo system. Connection piping will be cut off and capped off at following locations (see [[fig:P_ID]] for details).
-1. HV-XXXX
-1. HV-XXXX
-1. HV-XXXX
+During the 2020 IB1 Shutdown the TeV Quench tanks will be disconnected from the IB1 cryo system. Connection piping will be cut off and capped off at following locations (see Figure [[fig:P_ID]], [[fig:P_ID2]] for details).
+1. FCV-931A
+2. FCV-930
+3. HV-607
+4. HV-606
 
-The design pressure for {{{SYS_NAME}}} is src_python{print(f'{P_des.to(ureg.psig):.3g~}')}.
+Check valves FCV-931A and FCV-930 will be removed and replaced by threaded caps (see Figure [[fig:P_ID2]]). This part of piping is rated to 250 psig. Based on previous experience such disconnection doesn't constitute change per FESHM 5031.1 and excluded from requirements of engineering documentation and pressure testing. The change is listed here for consistency.
+
+Other locations are part of the IB1 piping system rated to 100 psig and will have piping cut off and welded caps added.
+No additional piping will be introduced with this change.
+
+The design pressure for {{{SYS_NAME}}} is src_python{print(f'{P_des.to(ureg.psig):.3g~}')}
+and is consistent with IB1 piping system pressure rating.
 
 
 The P&ID of the {{{SYS_NAME}}} is shown in Figure [[fig:P_ID]].
 
 #+CAPTION: The {{{SYS_NAME}}} as shown on P&ID {{{P_ID}}}.
 #+NAME: fig:P_ID
-[[./images/P_ID]]
+[[./images/P_ID.png]]
+
+#+CAPTION: Threaded caps locations (F00304970)
+#+NAME: fig:P_ID2
+[[./images/P_ID2.png]]
 
 * Design codes and evaluation criteria
 All the piping must meet all of the requirements of Section 5031.1 of the Fermilab ES&H Manual.
@@ -94,7 +164,7 @@ All the piping must meet all of the requirements of Section 5031.1 of the Fermil
 #+RESULTS:
 
 * Materials
-The tubing including fittings are fabricated from
+The fittings are fabricated from
 #+begin_src python
 print(pipes[0].material.name+'.')
 #+end_src
@@ -114,8 +184,7 @@ The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{
 
 
 #+end_src
-
-#+RESULTS:
+The same rule applies to HAZ and welded metal.
 
 #+begin_comment
 It should also be noted that Fermilab has extensive service experience using the 300 series stainless steel at liquid nitrogen temperatures and below.
@@ -143,16 +212,12 @@ Table [[tab:allowable_stress]] summarizes the materials used and the allowable s
 |                    |          |                       |
 
 * Piping design and analysis
-The minimum required wall thickness is calculated using B 31.3 304.1.2 and is shown in Table [[tab:pipe_wall]].
+The minimum required wall thickness is calculated using B31.3 304.1.2 and is shown in Table [[tab:pipe_wall]].
 
 $$t=\frac{PD}{2(SEW+PY)}$$
 #+begin_src python :results table :colnames '("Piping/tubing size	D, in"	"Min wall thick, in"	"Act thick, in"	"Wall thick ratio")
-  E = 1
-  W = 1
-  Y = 0.4
   table = []
   for pipe in pipes:
-    pipe.update(S=pipe.material.S, E=E, W=W, Y=Y)
     D = str(pipe.D) + '", ' + pipe.type
     t_min = pipe.pressure_design_thick(P_des)
     t_min_s = f'{t_min.to(ureg.inch).magnitude:.3g}'
@@ -220,8 +285,8 @@ Extensive service experience at Fermilab allows the use of these components in p
     for component in components:
       name = component.name + ', ' + str(component.size) + '"'
       source = component.source
-      P = f'{component.P.to(ureg.psi).magnitude:.3g}'
-      P_des_s = f'{P_des.to(ureg.psig).magnitude:.3g}'
+      P = f'{component.P.to(ureg.psi).magnitude:.0f}'
+      P_des_s = f'{P_des.to(ureg.psig).magnitude:.0f}'
       table.append((name, source, P, P_des_s))
     return table
 
@@ -231,6 +296,7 @@ Extensive service experience at Fermilab allows the use of these components in p
 
 #+CAPTION: Listed piping components.
 #+NAME: tab:listed
+#+ATTR_LATEX: :align p{2cm}p{3cm}rr
 #+RESULTS:
 | Component    | Source and P/N | Pressure rating, psig | Design pressure, psig |
 |--------------+----------------+-----------------------+-----------------------|
@@ -245,6 +311,7 @@ Extensive service experience at Fermilab allows the use of these components in p
 
 #+CAPTION: Unlisted piping components.
 #+NAME: tab:unlisted
+#+ATTR_LATEX: :align p{2cm}p{3cm}rr
 #+RESULTS:
 | Component    | Source and P/N | Pressure rating, psig | Design pressure, psig |
 |--------------+----------------+-----------------------+-----------------------|
@@ -258,7 +325,7 @@ The {{{SYS_NAME}}} doesn't introduce any changes to the piping pressure relief. 
 The {{{SYS_NAME}}} creates no additional constraints to IB1 piping.
 
 * Welding and brazing inspection
-All welding is made and certified by Fermilab. Completed inspection forms are included in the Appendix [[*Inspection forms]].
+All welding is made by Fermilab. Completed inspection forms are included in the Appendix [[*Inspection forms]].
 
 * Pressure testing
 #+begin_comment
@@ -279,8 +346,14 @@ The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
 The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure that its operation presents no hazards to personnel.
 
 * Appendix
-(Pressure test permits will be appended after this note is approved and the pressure tests are completed.)
 ** Inspection forms
+#+begin_src python
+  make_pics('Examination')
+#+end_src
+
+
+
+
 #+begin_src python
   if CATEGORY == 'Normal':
       print('** Pressure testing permits')
