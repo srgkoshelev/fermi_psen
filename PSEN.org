@@ -1,15 +1,48 @@
-#+TITLE: IB1 Purifier panel connection piping amendment \newline {{{DOC_NUM}}}
-#+LATEX_CLASS_OPTIONS: [titlepage]
-#+LATEX_HEADER: \usepackage{xcolor}
-#+OPTIONS: toc:nil tex:t
-#+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
-
+#+PROPERTY: header-args:python :session *python-PP* :results output raw :exports results
 #+MACRO: SYS_NAME purifier panel connection piping
 #+MACRO: DOC_NUM EN03624
 #+MACRO: P_ID F00304972
 
+#+TITLE: IB1 Purifier panel connection piping amendment \newline {{{DOC_NUM}}}
+#+LATEX_CLASS_OPTIONS: [titlepage]
+#+LATEX_HEADER: \usepackage{xcolor}
+#+OPTIONS: toc:nil tex:t
+
 #+TOC: headlines 2
 \newpage{}
+#+begin_src python :results pp replate :exports none
+  from wand.image import Image
+  import fnmatch
+
+  def make_pics(fname):
+      """Create pictures of a PDF file with a given name"""
+      pics = sorted(fnmatch.filter(os.listdir('images'), f'{fname}*.png'))
+      if not pics:
+          with Image(filename=f'images/{fname}.pdf', resolution = 200) as img:
+              with img.convert('png') as converted:
+                  converted.save(filename=f'images/{fname}_page.png')
+
+      for pic_fn in pics:
+          print(r'#+ATTR_LATEX: :width \textwidth')
+          print(f'[[./images/{pic_fn}]]')
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python
+  make_pics('Cover page')
+#+end_src
+
+#+RESULTS:
+: #+ATTR_LATEX: :width \textwidth
+: [[./images/Cover page_page-0.png]]
+: #+ATTR_LATEX: :width \textwidth
+: [[./images/Cover page_page-1.png]]
+: #+ATTR_LATEX: :width \textwidth
+: [[./images/Cover page_page-2.png]]
+
+\newpage{}
+* Setup                                                            :noexport:
 #+begin_src sh :exports none
 killall python
 #+end_src
@@ -19,7 +52,7 @@ killall python
 #+begin_src python :results pp output replace :exports none
   import heat_transfer as ht
   from collections import namedtuple
-  Elbow = namedtuple('Elbow', ['D', 'source', 'P'])
+  Component = namedtuple('Component', ['name', 'size', 'source', 'P'])
   ureg = ht.ureg
   Q_ = ht.Q_
 
@@ -52,12 +85,13 @@ killall python
   P_des = 250 * ureg.psig
   T_des = 32 * ureg.degF
 
-  pipes = [ht.piping.CopperTube(3/4, 'Type K', L=10*ureg.ft),
-           ht.piping.CopperTube(1, 'Type K', L=6*15*ureg.ft)]
+  pipes = [ht.piping.CopperTube(3/4, 'Type K', L=6*15*ureg.ft)
+           ]
   for pipe in pipes:
       pipe.material = copper
-  listed = [Elbow(3/4, None, 582*ureg.psi),
-            Elbow(1, None, 494*ureg.psi)
+  listed = [Component('Elbow', 3/4, 'Stockroom', 582*ureg.psi),
+            Component('Elbow', 1, 'Stockroom', 494*ureg.psi),
+            Component('Adapter SS to C', 3/4, 'McMaster 5520K227', 400*ureg.psi)
   ]
   unlisted = []
   print([(str(pipe), f'{pipe.L.to(ureg.ft):.2g~}', f'{pipe.volume.to(ureg.ft**3):.2g~}') for pipe in pipes])
@@ -68,13 +102,7 @@ killall python
 #+end_src
 
 #+RESULTS:
-: Python 3.7.0 (default, Aug  2 2018, 21:46:10)
-: [Clang 9.1.0 (clang-902.0.39.2)] on darwin
-: Type "help", "copyright", "credits" or "license" for more information.
-: [('0.75" Copper tube Type K', '10 ft', '0.03 ft ** 3'), ('1" Copper tube Type K', '90 ft', '0.49 ft ** 3')]
-: python.el: native completion setup failed, <class 'ImportError'>: dlopen(/Users/skoshelev/.pyenv/versions/3.7.0/lib/python3.7/lib-dynload/readline.cpython-37m-darwin.so, 2): Library not loaded: /usr/local/opt/readline/lib/libreadline.7.dylib
-:   Referenced from: /Users/skoshelev/.pyenv/versions/3.7.0/lib/python3.7/lib-dynload/readline.cpython-37m-darwin.so
-:   Reason: image not found
+: [('0.75" Copper tube Type K', '90 ft', '0.27 ft ** 3')]
 
 * Introduction
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
@@ -228,19 +256,29 @@ Extensive service experience at Fermilab allows the use of these components in p
 #+end_comment
 
 #+begin_src python :results table :colnames '("Component" "Source and P/N" "Pressure rating, psig" "Design pressure, psig")
-  if listed:
+  def component_table(components):
+    """Prepare a table of listed/unlisted components.
+
+    Parameters
+    ----------
+    components : list
+    """
     table = []
-    for element in listed:
-      name = element.__doc__.split('(')[0] + ', ' + str(element.D) + '"'
-      source = element.source
-      P = f'{element.P.to(ureg.psi).magnitude:.3g}'
-      P_des_s = f'{P_des.to(ureg.psig).magnitude:.3g}'
+    for component in components:
+      name = component.name + ', ' + str(component.size) + '"'
+      source = component.source
+      P = f'{component.P.to(ureg.psi).magnitude:.0f}'
+      P_des_s = f'{P_des.to(ureg.psig).magnitude:.0f}'
       table.append((name, source, P, P_des_s))
-    print(table)
+    return table
+
+  if listed:
+    print(component_table(listed))
 #+end_src
 
 #+CAPTION: Listed piping components.
 #+NAME: tab:listed
+#+ATTR_LATEX: :align p{2cm}p{3cm}rr
 #+RESULTS:
 | Component    | Source and P/N | Pressure rating, psig | Design pressure, psig |
 |--------------+----------------+-----------------------+-----------------------|
@@ -298,7 +336,7 @@ The {{{SYS_NAME}}} is protected by SV-1601, and SV-1602.
 The {{{SYS_NAME}}} is operated at a room temperature thus no flexibility calculations are required.
 
 * Welding and brazing inspection
-All brazing is made and certified by Fermilab. Completed inspection forms are included in the Appendix [[*Inspection forms]].
+All brazing is made and certified by Fermilab. Code required certifications, e.g. WPS, PQR, are available at [[https://www-tdserver1.fnal.gov/tdweb/ms/Policies/Welding/index.htm][Fermi welding procedures web page]]. Completed inspection forms are included in the Appendix [[*Inspection forms]].
 
 * Pressure testing
 #+begin_comment
@@ -306,15 +344,22 @@ All brazing is made and certified by Fermilab. Completed inspection forms are in
 67.5 psig with insulating vacuum
 #+end_comment
 The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3 345.5.4. For a pneumatic test, the test pressure is 110% of the design pressure (src_python{print(f'{P_des:.3g~}')}) or src_python{print(f'{P_test:.3g~}')}. The test medium will be gaseous helium.  After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
-Procedure for pressure testing of {{{SYS_NAME}} is attached in Appendix [[*Pressure testing procedure]].
+Procedure for pressure testing of {{{SYS_NAME}}} is attached in Appendix [[*Pressure testing procedure]].
 * Summary
 The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure that its operation presents no hazards to personnel.
 
 * Appendix
 (Pressure test permits will be appended after this note is approved and the pressure tests are completed.)
 ** Inspection forms
+#+begin_src python
+  make_pics('Examination')
+#+end_src
 ** Pressure testing permits
-[[./images/pressure_permit.png]]
+#+begin_src python
+  make_pics('Pressure_test')
+#+end_src
+
+#+RESULTS:
 
 ** Pressure testing procedure
 *** Safety
@@ -337,6 +382,7 @@ The pressure test area will be roped off at a radius larger than an estimated bl
           f'{max(blast_radius).to(ureg.m).magnitude:.3g}']])
 #+end_src
 
+
 #+CAPTION: Safety radius
 #+NAME: tab:blast_radius
 #+RESULTS:
@@ -356,7 +402,7 @@ Refer to Figure [[fig:setup]] for the layout of the test equipment.  The specifi
 
 #+NAME: fig:setup
 #+CAPTION: P&ID of the Test Equipment
-[[./images/Pressure_test_setup.png]]
+[[./images/pressure_test_setup.png]]
 
 #+NAME: tab:equipment
 #+CAPTION: Test Equipment Component Specification
@@ -372,9 +418,7 @@ Refer to Figure [[fig:setup]] for the layout of the test equipment.  The specifi
    - [ ] PSV-1662
    - [ ] PSV-1601
    - [ ] PSV-1602
-2. Disconnect pressure gauges:
-   - [ ] \color{red}TBD
-3. Ensure following purifier panel valves *open*:
+2. Ensure following purifier panel valves *open*:
    - [ ] HV-1666
    - [ ] HV-1627A/B
    - [ ] HV-1669A/B
@@ -386,7 +430,7 @@ Refer to Figure [[fig:setup]] for the layout of the test equipment.  The specifi
    - [ ] HV-1631A/B
    - [ ] HV-1663A/B
    - [ ] HV-401 ALT (any direction)
-4. Ensure following valves *closed*:
+3. Ensure following valves *closed*:
    - Purifier panel
      - [ ] HV-1662
      - [ ] HV-1603
