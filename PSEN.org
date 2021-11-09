@@ -1,20 +1,58 @@
 #+TITLE: IB1 LN2 withdrawal piping system engineering note
 #+LATEX_CLASS_OPTIONS: [titlepage]
 #+OPTIONS: toc:nil tex:t
-#+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
+#+PROPERTY: header-args:python :session *python-PSEN* :results output :exports results
 
 #+MACRO: SYS_NAME LN2 withdrawal piping
 #+MACRO: P_ID F00304970
 
+#+TITLE: IB1 Purifier panel connection piping amendment \newline {{{DOC_NUM}}}
+#+LATEX_CLASS_OPTIONS: [titlepage]
+#+LATEX_HEADER: \usepackage{xcolor}
+#+OPTIONS: toc:nil tex:t
+
 #+TOC: headlines 2
 \newpage{}
+#+begin_src python :results pp replate :exports none
+  from wand.image import Image
+  import fnmatch
+
+  def make_pics(fname):
+      """Create pictures of a PDF file with a given name"""
+      pics = sorted(fnmatch.filter(os.listdir('images'), f'{fname}*.png'))
+      if not pics:
+          with Image(filename=f'images/{fname}.pdf', resolution = 200) as img:
+              with img.convert('png') as converted:
+                  converted.save(filename=f'images/{fname}_page.png')
+
+      for pic_fn in pics:
+          print(r'#+ATTR_LATEX: :width \textwidth')
+          print(f'[[./images/{pic_fn}]]')
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python
+  make_pics('Cover page')
+#+end_src
+
+#+RESULTS:
+: #+ATTR_LATEX: :width \textwidth
+: [[./images/Cover page_page-0.png]]
+: #+ATTR_LATEX: :width \textwidth
+: [[./images/Cover page_page-1.png]]
+: #+ATTR_LATEX: :width \textwidth
+: [[./images/Cover page_page-2.png]]
+
+\newpage{}
+* Setup                                                            :noexport:
 #+begin_src sh :exports none
 killall python
 #+end_src
 
 #+RESULTS:
 
-#+begin_src python :results none :exports none
+#+begin_src python :results pp output replace :exports none
   import heat_transfer as ht
   from collections import namedtuple
   Component = namedtuple('Component', ['name', 'size', 'source', 'P'])
@@ -47,26 +85,39 @@ killall python
   copper.S = Q_('6000 psi')
   copper.T_min = Q_('-452 degF')
 
-  P_des = 100 * ureg.psig
-  T_des = 77 * ureg.K
+  P_des = 250 * ureg.psig
+  T_des = 32 * ureg.degF
 
-  pipes = [ht.piping.Pipe(0.5, SCH=10)
+  pipes = [ht.piping.CopperTube(3/4, 'Type K', L=6*15*ureg.ft)
            ]
   for pipe in pipes:
-      pipe.material = steel
-  listed = [Component('Cap', pipes[0].D, None, 0*ureg.psi),
+      pipe.material = copper
+  listed = [Component('Elbow', 3/4, 'Stockroom', 582*ureg.psi),
+            Component('Elbow', 1, 'Stockroom', 494*ureg.psi),
+            Component('Adapter SS to C', 3/4, 'McMaster 5520K227', 400*ureg.psi)
   ]
   unlisted = []
+  print([(str(pipe), f'{pipe.L.to(ureg.ft):.2g~}', f'{pipe.volume.to(ureg.ft**3):.2g~}') for pipe in pipes])
+
+  P_test = 1.1 * P_des
+  pt_fluid_name = 'helium'
+  pt_fluid = ht.ThermState(pt_fluid_name, P=P_test, T=ht.T_NTP)
 #+end_src
 
 #+RESULTS:
+: [('0.75" Copper tube Type K', '90 ft', '0.27 ft ** 3')]
 
 * Introduction
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
+The current version of the document is maintained in Team Center {{{DOC_NUM}}}.
 
 During the 2020 IB1 Shutdown the LN2 withdrawal line inside IB1 will be removed. Remaining piping will be capped off at the tee (see [[fig:P_ID]] for details).
 
-The design pressure for {{{SYS_NAME}}} is src_python{print(f'{P_des.to(ureg.psig):.3g~}')}.
+The design temperature is chosen to be
+src_python{print(f'{T_des.to(ureg.K):.3g~}')}.
+
+The design pressure for {{{SYS_NAME}}} is
+src_python{print(f'{P_des.to(ureg.psig):.3g~}')}.
 
 
 The P&ID of the {{{SYS_NAME}}} is shown in Figure [[fig:P_ID]].
@@ -91,7 +142,7 @@ All the piping must meet all of the requirements of Section 5031.1 of the Fermil
 #+RESULTS:
 
 * Materials
-The tubing including fittings are fabricated from
+The tubing including fittings is fabricated from
 #+begin_src python
 print(pipes[0].material.name+'.')
 #+end_src
@@ -123,6 +174,8 @@ The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{
 #+end_src
 
 #+RESULTS:
+
+According to Table 323.2.2, box A-6, there are no additional requirements for HAZ and the braze metal unless filler metal composition is outside the range for base metal composition. For copper brazing the filler metal will be significantly different from the base metal so the impact test will be required. Except for as stated in Note 5, when the maximum obtainable specimen has a width along the notch of less than 0.098 in. All of the piping in {{{SYS_NAME}}} satisfies the requirement of Note 5 (see Table [[tab:pipe_wall]]) and therefore is exempt from testing.
 
 #+begin_comment
 It should also be noted that Fermilab has extensive service experience using the 300 series stainless steel at liquid nitrogen temperatures and below.
@@ -227,8 +280,8 @@ Extensive service experience at Fermilab allows the use of these components in p
     for component in components:
       name = component.name + ', ' + str(component.size) + '"'
       source = component.source
-      P = f'{component.P.to(ureg.psi).magnitude:.3g}'
-      P_des_s = f'{P_des.to(ureg.psig).magnitude:.3g}'
+      P = f'{component.P.to(ureg.psi).magnitude:.0f}'
+      P_des_s = f'{P_des.to(ureg.psig).magnitude:.0f}'
       table.append((name, source, P, P_des_s))
     return table
 
@@ -238,6 +291,7 @@ Extensive service experience at Fermilab allows the use of these components in p
 
 #+CAPTION: Listed piping components.
 #+NAME: tab:listed
+#+ATTR_LATEX: :align p{2cm}p{3cm}rr
 #+RESULTS:
 | Component    | Source and P/N | Pressure rating, psig | Design pressure, psig |
 |--------------+----------------+-----------------------+-----------------------|
@@ -265,13 +319,17 @@ The {{{SYS_NAME}}} doesn't introduce any changes to the piping pressure relief. 
 The {{{SYS_NAME}}} creates no additional constraints to IB1 piping.
 
 * Welding and brazing inspection
+#+begin_comment
 All welding is made and certified by Fermilab. Completed inspection forms are included in the Appendix [[*Inspection forms]].
+#+end_comment
+All brazing is made and certified by Fermilab. Code required certifications, e.g. WPS, PQR, are available at [[https://www-tdserver1.fnal.gov/tdweb/ms/Policies/Welding/index.htm][Fermi welding procedures web page]]. Completed inspection forms are included in the Appendix [[*Inspection forms]].
 
 * Pressure testing
 #+begin_comment
 345.2.5 for jacketed piping
 67.5 psig with insulating vacuum
 #+end_comment
+
 The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
 #+begin_src python
   if CATEGORY == 'Normal':
@@ -282,6 +340,10 @@ The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
       print('345.7 initial service leak test in accordance with 345.1 (a) for Category D piping.')
 #+end_src
 
+#+begin_comment
+The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3 345.5.4. For a pneumatic test, the test pressure is 110% of the design pressure (src_python{print(f'{P_des:.3g~}')}) or src_python{print(f'{P_test:.3g~}')}. The test medium will be gaseous helium.  After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
+Procedure for pressure testing of {{{SYS_NAME}}} is attached in Appendix [[*Pressure testing procedure]].
+#+end_comment
 * Summary
 The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure that its operation presents no hazards to personnel.
 
@@ -292,4 +354,124 @@ The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure t
       print('** Pressure testing permits')
       print('(Pressure test permits will be appended after this note is approved and the pressure tests are completed.)')
       print('[[./images/pressure_permit.png]]')
+  make_pics('Examination')
 #+end_src
+** Pressure testing permits
+#+begin_src python
+  make_pics('Pressure_test')
+#+end_src
+
+#+RESULTS:
+
+** Pressure testing procedure
+*** Safety
+The areas around the piping system must be roped off or barricaded to keep personnel out of the test area during the execution of this procedure.  Signs are to be posted warning personnel that a pressure test is in progress and to keep out of the area (per FESHM 5034 7.1.b.).  Follow Fermilab FESHM guidelines for proper PPE.
+
+*** Hazards
+This is a pneumatic pressure test utilizing compressed
+src_python{print(f'{pt_fluid_name}')}
+gas. There is potential for:
+- Exposure to an asphyxiant
+- Sudden release of pressure from piping
+- Striking hazard due to failure of piping or piping components
+The pressure test area will be roped off at a radius larger than an estimated blast radius (see Table [[tab:blast_radius]]).
+#+begin_src python :results table :colnames '("Test fluid" "Stored energy, kJ" "Blast radius, m")
+  piping = ht.piping.Piping(pt_fluid)
+  piping.add(*pipes)
+  E_stored = ht.stored_energy(piping)
+  blast_radius = ht.blast_radius(E_stored)
+  print([[str(piping.fluid), f'{E_stored.to(ureg.kJ).magnitude:.3g}',
+          f'{max(blast_radius).to(ureg.m).magnitude:.3g}']])
+#+end_src
+
+
+#+CAPTION: Safety radius
+#+NAME: tab:blast_radius
+#+RESULTS:
+| Test fluid                           | Stored energy     | Blast radius |
+|--------------------------------------+-------------------+--------------|
+| Helium at T = 293 K and P = 290 psi. | 2.25e+04 ft * lbf | 15.9 ft      |
+|                                      |                   |              |
+
+Ensure that the piping is securely mounted (per FESHM 5034 7.1.b.).
+
+*** Test Equipment
+Refer to Figure [[fig:setup]] for the layout of the test equipment.  The specific requirements for the components are listed in Table [[tab:equipment]]. The test equipment should be tested to be leak free before attaching it to the piping for the pressure test.
+
+-	The relief valve must be tested prior to performing the pressure test procedure to ensure that it is operating properly (per FESHM 5034 7.2.d.).
+-	The pressure test gauge (PI-3) calibration should be up-to-date (per FESHM 5034 7.2.b.).
+
+
+#+NAME: fig:setup
+#+CAPTION: P&ID of the Test Equipment
+[[./images/pressure_test_setup.png]]
+
+#+NAME: tab:equipment
+#+CAPTION: Test Equipment Component Specification
+| Component | Description           | Range                        |
+| PI-1      | Supply Pressure Gauge | 400 psig                     |
+| PSV-1     | Safety Relief Valve   | 300 psig (cracking pressure) |
+| PI-3      | Test Pressure Gauge   | 400 psig                     |
+
+*** Test Preparation
+**** Isolate the piping from other portions of the facility.
+1. Remove reliefs and plug pipe outlets:
+   - [ ] PSV-1661
+   - [ ] PSV-1662
+   - [ ] PSV-1601
+   - [ ] PSV-1602
+2. Ensure following purifier panel valves *open*:
+   - [ ] HV-1666
+   - [ ] HV-1627A/B
+   - [ ] HV-1669A/B
+   - [ ] HV-1670A/B
+   - [ ] HV-1665A/B
+   - [ ] HV-1664A/B
+   - [ ] HV-1661A/B
+   - [ ] HV-1632A/B
+   - [ ] HV-1631A/B
+   - [ ] HV-1663A/B
+   - [ ] HV-401 ALT (any direction)
+3. Ensure following valves *closed*:
+   - Purifier panel
+     - [ ] HV-1662
+     - [ ] HV-1603
+     - [ ] HV-1666A
+     - [ ] HV-1626A/B
+     - [ ] HV-1612A/B
+     - [ ] HV-1625A/B
+     - [ ] HV-1668A/B
+     - [ ] HV-1633A/B
+     - [ ] HV-1630A/B
+     - [ ] HV-1629A/B
+     - [ ] HV-1628A/B
+   - Turbine scrub
+     - [ ] HV-34
+   - Compressor middle stage
+     - [ ] PCV-1406
+   - Dist box
+     - [ ] HV-401
+     - [ ] HV-8 ALT
+     - [ ] HV-1761
+   - Mycom suction
+     - [ ] YCV-1703
+     - [ ] HV-1703-C
+   - Storage dewar
+     - [ ] HV-315
+   - Buffer tanks
+     - [ ] HV-140
+**** Connect Test Equipment
+1. Setup the test equipment in a safe location outside the roped off area.
+2. Install the pressure test gauge PI-3.
+3. Connect the test gas connection from MV-3.
+**** Perform the pressure test according to section [[*Pressure Test]].
+**** Switch HV-401 ALT to alternative direction
+**** Perform the pressure test according to section [[*Pressure Test]].
+*** Pressure Test
+During this test procedure, the pressure will be increased in steps waiting at each step to verify that the pressure remains constant.  If at any time a leak is suspected, reduce the pressure to half of the value for the current step and check for leaks with the soap bubble method.  When a leak is found, the piping must be depressurized before repairing the leak.  (per FESHM 5034 7.3.b. and 3.c.)
+
+1. Increase the pressure in the piping to 25 psig.  Wait 5 minutes.  If no leak is detected, proceed to the next step.
+2. Increase the pressure to test pressure with increment of no more than 50 psig.  Wait 5 minutes at each step.  If no leak is detected proceed to next pressure increase step. After reaching the test pressure wait 10 minutes.  If no leak is evident, reduce pressure to design pressure and check all seams and fittings with soap bubble or alternate leak detection method.  (per FESHM 5034 7.3.a and B31.3 345.5.5)
+3. When all leak checks have been performed and no leaks exist, depressurize the piping.
+4. Restore the system back to its original configuration.
+5. Remove the rope/barricades and signs.
