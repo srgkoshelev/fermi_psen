@@ -1,64 +1,47 @@
-#+PROPERTY: header-args:python :session *python-QT* :results output raw :exports results
+#+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
 #+MACRO: SYS_NAME Quench tanks disconnect
 #+MACRO: DOC_NUM EN04241
 #+MACRO: P_ID F00304966
 
 #+TITLE: Quench tanks disconnect piping amendment \newline {{{DOC_NUM}}}
-#+LATEX_CLASS_OPTIONS: [titlepage]
 #+OPTIONS: toc:nil tex:t broken-links:t
-#+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
-
-#+MACRO: SYS_NAME LN2 withdrawal piping
-#+MACRO: P_ID F00304970
-
-#+TITLE: IB1 Purifier panel connection piping amendment \newline {{{DOC_NUM}}}
 #+LATEX_CLASS_OPTIONS: [titlepage]
 #+LATEX_HEADER: \usepackage{xcolor}
-#+OPTIONS: toc:nil tex:t
-
 #+TOC: headlines 2
+
+
 \newpage{}
-#+begin_src python :results pp replate :exports none
+#+begin_src python :results pp replace :exports none :noweb yes
   from wand.image import Image
   import fnmatch
+  import re
+  <<ht_preamble>>
 
   def make_pics(fname):
       """Create pictures of a PDF file with a given name"""
       pics = sorted(fnmatch.filter(os.listdir('images'), f'{fname}*.png'))
       if not pics:
-          with Image(filename=f'images/{fname}.pdf', resolution = 200) as img:
-              with img.convert('png') as converted:
-                  converted.save(filename=f'images/{fname}_page.png')
-
+          try:
+            with Image(filename=f'images/{fname}.pdf', resolution = 200) as img:
+                with img.convert('png') as converted:
+                    converted.save(filename=f'images/{fname}_page.png')
+          except Exception as e:
+              print(missing_file_error(e, fname))
       for pic_fn in pics:
           print(r'#+ATTR_LATEX: :width \textwidth')
           print(f'[[./images/{pic_fn}]]')
-#+end_src
+      return None
 
-#+RESULTS:
+  def missing_file_error(error, fname):
+      """Formats into Latex an error message for missing file."""
+      message = str(error)
+      if fname in message:
+          err_message = r'\colorbox{red}{' + \
+              f'Missing {fname} file'.replace("_", " ") + '}'
+          return err_message
+      else:
+          return error
 
-#+begin_src python
-  make_pics('Cover page')
-#+end_src
-
-#+RESULTS:
-: #+ATTR_LATEX: :width \textwidth
-: [[./images/Cover page_page-0.png]]
-: #+ATTR_LATEX: :width \textwidth
-: [[./images/Cover page_page-1.png]]
-: #+ATTR_LATEX: :width \textwidth
-: [[./images/Cover page_page-2.png]]
-
-\newpage{}
-* Setup                                                            :noexport:
-#+begin_src sh :exports none
-killall python
-#+end_src
-
-#+RESULTS:
-
-#+begin_src python :results pp output replace :exports none
-  import heat_transfer as ht
 
   class Component:
       def __init__(self, name, size, source, P):
@@ -66,9 +49,6 @@ killall python
           self.size = size
           self.source = source
           self.P = P
-
-  ureg = ht.ureg
-  Q_ = ht.Q_
 
   class Material():
       """Basic material class."""
@@ -84,38 +64,64 @@ killall python
               try:
                   return ht.nist_property(self.name, 'LE', T)
               except KeyError:
-                  return ht.nist_property(self.name, 'EC', 293*ureg.K, T)*(T-293*ureg.K)
+                  return ht.nist_property(self.name, 'EC', 293*u.K, T)*(T-293*u.K)
+#+end_src
 
-  steel = Material('304SS')
-  steel.rho = Q_('7859 kg/m**3')
-  steel.S = Q_('16700 psi')  # 304L SS allowable stress
-  steel.nu = 0.3  # Poisson's ratio
-  steel.T_min = Q_('-425 degF')
+#+RESULTS:
+
+#+begin_src python
+  make_pics('Cover page')
+#+end_src
+
+#+RESULTS:
+
+\newpage{}
+* Definitions                                                      :noexport:
+#+begin_src python :results pp output replace :exports none
+  SS304 = Material('304SS')
+  SS304.rho = Q_('7859 kg/m**3')
+  SS304.S = Q_('16700 psi')  # 304L SS allowable stress
+  SS304.nu = 0.3  # Poisson's ratio
+  SS304.T_min = Q_('-425 degF')
 
   copper = Material('copper')
   copper.S = Q_('6000 psi')
   copper.T_min = Q_('-452 degF')
+#+end_src
 
-  # TODO Separate inputs from setups
-  P_des = 100 * ureg.psig
-  T_des = 273 * ureg.K
+* Inputs                                                           :noexport:
+#+begin_src python :results pp output replace :exports none
+  P_des = 100 * u.psig
+  T_des = 273 * u.K
 
-  pipes = [ht.piping.Pipe(1.5, SCH=10),
+  # Directly measured tube stub
+  OD = 1.75*u.inch
+  ID = 1.625*u.inch
+  wall = (OD - ID) / 2
+  tube = ht.piping.Tube(OD, wall=wall)
+
+  pipes = [tube
            ]
   E = 1
   W = 1
   Y = 0.4
-  for pipe in pipes:
-      pipe.material = copper
-      pipe.update(S=pipe.material.S, E=E, W=W, Y=Y)
-  listed = [Component('Adadpter COP to MNPT', pipes[0].D, 'Grainger 447N97', 582*ureg.psi)
-  ]
-  unlisted = [Component('Valve', pipes[0].D, 'Worcester 441166', 1500*ureg.psi)]
-  print([(str(pipe), f'{pipe.L.to(ureg.ft):.2g~}', f'{pipe.volume.to(ureg.ft**3):.2g~}') for pipe in pipes])
-
   P_test = 1.1 * P_des
   pt_fluid_name = 'helium'
   pt_fluid = ht.ThermState(pt_fluid_name, P=P_test, T=ht.T_NTP)
+
+  listed = [
+      Component('Adadpter COP to MNPT', pipes[0].D, 'Grainger 447N97', 582*u.psi)
+  ]
+
+  unlisted = [
+      Component('Valve', pipes[0].D, 'Worcester 441166', 1500*u.psi)
+  ]
+
+  #################
+  for pipe in pipes:
+      pipe.material = SS304
+      pipe.add_SEWY(S=pipe.material.S, E=E, W=W, Y=Y)
+  print([(str(pipe), f'{pipe.L.to(u.ft):.2g~}', f'{pipe.volume.to(u.ft**3):.2g~}') for pipe in pipes])
 #+end_src
 
 #+RESULTS:
@@ -132,10 +138,10 @@ The change to {{{SYS_NAME}}} described in this document is removal of part of th
 src_python{print(f'{P_des:.3g~}')}.
 
 The design temperature is chosen to be
-src_python{print(f'{T_des.to(ureg.K):.3g~}')}.
+src_python{print(f'{T_des.to(u.K):.3g~}')}.
 
 The design pressure for {{{SYS_NAME}}} is
-src_python{print(f'{P_des.to(ureg.psig):.3g~}')}.
+src_python{print(f'{P_des.to(u.psig):.3g~}')}.
 
 #+CAPTION: Threaded caps locations (F00304970)
 #+NAME: fig:P_ID2
@@ -145,7 +151,7 @@ src_python{print(f'{P_des.to(ureg.psig):.3g~}')}.
 All the piping must meet all of the requirements of Section 5031.1 of the Fermilab ES&H Manual.
 #+begin_src python
   print('This section states that piping systems containing gas at a pressure ')
-  if P_des > 150 * ureg.psig or T_des < -20 * ureg.degF:
+  if P_des > 150 * u.psig or T_des < -20 * u.degF:
       CATEGORY = 'Normal'
       print('above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service ')
   else:
@@ -166,11 +172,11 @@ The tubing including fittings is fabricated from
 
 The respective allowable stress from Table A-1 of ASME B31.3 will be used in this analysis.
 
-The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(ureg.K):.3g~} ({T_des.to(ureg.degF):.3g~})')}.
+The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(u.K):.3g~} ({T_des.to(u.degF):.3g~})')}.
 #+begin_src python
   if any(T_des < pipe.material.T_min for pipe in pipes):
     print('This is below the minimum temperature listed for any stainless steel pipe or tube. According to B31.3 Section 323.2.2, impact testing is required for this material except as stated in Table 323.2.2 Note (6) where impact testing is not required when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
-    if not any(pipe.wall >= 0.098*ureg.inch for pipe in pipes):
+    if not any(pipe.wall >= 0.098*u.inch for pipe in pipes):
       print('All of the tubing and piping with design minimum temperature below -20 F used in the {{{SYS_NAME}}} has a wall thickness of less than 0.098 in. Therefore, impact testing is not required for this piping system.')
   else:
     print('This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.')
@@ -193,7 +199,7 @@ All piping has wall thickness less than 0.359” and satisfies this requirement.
 Table [[tab:allowable_stress]] summarizes the materials used and the allowable stresses from B31.3 Table A-1.
 
 #+begin_src python :results table :colnames '("Component"	"Material"	"Allowable Stress, psi")
-  print([[pipes[0].type, pipes[0].material.name, f'{pipes[0].material.S.to(ureg.psi).magnitude:.0f}'], ['', '', '']])
+  print([[pipes[0].type, pipes[0].material.name, f'{pipes[0].material.S.to(u.psi).magnitude:.0f}'], ['', '', '']])
 #+end_src
 
 #+CAPTION: Materials and Allowable Stress Values
@@ -213,9 +219,9 @@ $$t=\frac{PD}{2(SEW+PY)}$$
   for pipe in pipes:
     D = str(pipe.D) + '", ' + pipe.type
     t_min = pipe.pressure_design_thick(P_des)
-    t_min_s = f'{t_min.to(ureg.inch).magnitude:.3g}'
+    t_min_s = f'{t_min.to(u.inch).magnitude:.3g}'
     t_a = pipe.wall
-    t_a_s = f'{t_a.to(ureg.inch).magnitude:.3g}'
+    t_a_s = f'{t_a.to(u.inch).magnitude:.3g}'
     ratio = (t_a/t_min).to_base_units()
     ratio_s = f'{ratio:.3g~}'
     table.append([D, t_min_s, t_a_s, ratio_s])
@@ -278,8 +284,8 @@ Extensive service experience at Fermilab allows the use of these components in p
     for component in components:
       name = component.name + ', ' + str(component.size) + '"'
       source = component.source
-      P = f'{component.P.to(ureg.psi).magnitude:.0f}'
-      P_des_s = f'{P_des.to(ureg.psig).magnitude:.0f}'
+      P = f'{component.P.to(u.psi).magnitude:.0f}'
+      P_des_s = f'{P_des.to(u.psig).magnitude:.0f}'
       table.append((name, source, P, P_des_s))
     return table
 
@@ -350,6 +356,8 @@ The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure t
   make_pics('Examination')
 #+end_src
 
+#+RESULTS:
+
 #+begin_src python
   if CATEGORY == 'Normal':
       print('** Pressure testing permits')
@@ -360,8 +368,6 @@ The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure t
 #+begin_src python
   make_pics('Pressure_test')
 #+end_src
-
-#+RESULTS:
 
 ** Pressure testing procedure
 *** Safety
@@ -380,8 +386,8 @@ The pressure test area will be roped off at a radius larger than an estimated bl
   piping.add(*pipes)
   E_stored = ht.stored_energy(piping)
   blast_radius = ht.blast_radius(E_stored)
-  print([[str(piping.fluid), f'{E_stored.to(ureg.kJ).magnitude:.3g}',
-          f'{max(blast_radius).to(ureg.m).magnitude:.3g}']])
+  print([[str(piping.fluid), f'{E_stored.to(u.kJ).magnitude:.3g}',
+          f'{max(blast_radius).to(u.m).magnitude:.3g}']])
 #+end_src
 
 
