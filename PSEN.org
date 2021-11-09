@@ -85,18 +85,21 @@ killall python
   copper.S = Q_('6000 psi')
   copper.T_min = Q_('-452 degF')
 
-  P_des = 250 * ureg.psig
+  # TODO Separate inputs from setups
+  P_des = 100 * ureg.psig
   T_des = 32 * ureg.degF
 
-  pipes = [ht.piping.CopperTube(3/4, 'Type K', L=6*15*ureg.ft)
+  pipes = [ht.piping.CopperTube(3/4, 'Type K')
            ]
+  E = 1
+  W = 1
+  Y = 0.4
   for pipe in pipes:
       pipe.material = copper
-  listed = [Component('Elbow', 3/4, 'Stockroom', 582*ureg.psi),
-            Component('Elbow', 1, 'Stockroom', 494*ureg.psi),
-            Component('Adapter SS to C', 3/4, 'McMaster 5520K227', 400*ureg.psi)
+      pipe.update(S=pipe.material.S, E=E, W=W, Y=Y)
+  listed = [Component('Adadpter COP to MNPT', pipes[0].D, 'Grainger 447N97', 582*ureg.psi)
   ]
-  unlisted = []
+  unlisted = [Component('Valve', pipes[0].D, 'Worcester 441166', 1500*ureg.psi)]
   print([(str(pipe), f'{pipe.L.to(ureg.ft):.2g~}', f'{pipe.volume.to(ureg.ft**3):.2g~}') for pipe in pipes])
 
   P_test = 1.1 * P_des
@@ -111,20 +114,17 @@ killall python
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
 The current version of the document is maintained in Team Center {{{DOC_NUM}}}.
 
-During the 2020 IB1 Shutdown the LN2 withdrawal line inside IB1 will be removed. Remaining piping will be capped off at the tee (see [[fig:P_ID]] for details).
+#+begin_comment
+Remaining piping will be capped off at the tee (see [[fig:P_ID]] for details).
+#+end_comment
+The change to {{{SYS_NAME}}} described in this document is removal of part of the tubing and brazing a cap to isolate the line. N2 system at IB1 is rated
+src_python{print(f'{P_des:.3g~}')}.
 
 The design temperature is chosen to be
 src_python{print(f'{T_des.to(ureg.K):.3g~}')}.
 
 The design pressure for {{{SYS_NAME}}} is
 src_python{print(f'{P_des.to(ureg.psig):.3g~}')}.
-
-
-The P&ID of the {{{SYS_NAME}}} is shown in Figure [[fig:P_ID]].
-
-#+CAPTION: The {{{SYS_NAME}}} as shown on P&ID {{{P_ID}}}.
-#+NAME: fig:P_ID
-[[./images/P_ID.png]]
 
 * Design codes and evaluation criteria
 All the piping must meet all of the requirements of Section 5031.1 of the Fermilab ES&H Manual.
@@ -144,7 +144,7 @@ All the piping must meet all of the requirements of Section 5031.1 of the Fermil
 * Materials
 The tubing including fittings is fabricated from
 #+begin_src python
-print(pipes[0].material.name+'.')
+  print(pipes[0].material.name+'.')
 #+end_src
 
 #+RESULTS:
@@ -174,8 +174,6 @@ The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{
 #+end_src
 
 #+RESULTS:
-
-According to Table 323.2.2, box A-6, there are no additional requirements for HAZ and the braze metal unless filler metal composition is outside the range for base metal composition. For copper brazing the filler metal will be significantly different from the base metal so the impact test will be required. Except for as stated in Note 5, when the maximum obtainable specimen has a width along the notch of less than 0.098 in. All of the piping in {{{SYS_NAME}}} satisfies the requirement of Note 5 (see Table [[tab:pipe_wall]]) and therefore is exempt from testing.
 
 #+begin_comment
 It should also be noted that Fermilab has extensive service experience using the 300 series stainless steel at liquid nitrogen temperatures and below.
@@ -207,9 +205,6 @@ The minimum required wall thickness is calculated using B31.3 304.1.2 and is sho
 
 $$t=\frac{PD}{2(SEW+PY)}$$
 #+begin_src python :results table :colnames '("Piping/tubing size	D, in"	"Min wall thick, in"	"Act thick, in"	"Wall thick ratio")
-  E = 1
-  W = 1
-  Y = 0.4
   table = []
   for pipe in pipes:
     pipe.update(S=pipe.material.S, E=E, W=W, Y=Y)
@@ -298,7 +293,6 @@ Extensive service experience at Fermilab allows the use of these components in p
 | Elbow, 0.75" | None           |                   582 |                   250 |
 | Elbow, 1"    | None           |                   494 |                   250 |
 
-
 #+begin_src python :results table :colnames '("Component" "Source and P/N" "Pressure rating, psig" "Design pressure, psig")
   if unlisted:
     print(component_table(unlisted))
@@ -306,6 +300,7 @@ Extensive service experience at Fermilab allows the use of these components in p
 
 #+CAPTION: Unlisted piping components.
 #+NAME: tab:unlisted
+#+ATTR_LATEX: :align p{2cm}p{3cm}rr
 #+RESULTS:
 | Component    | Source and P/N | Pressure rating, psig | Design pressure, psig |
 |--------------+----------------+-----------------------+-----------------------|
@@ -316,7 +311,7 @@ Extensive service experience at Fermilab allows the use of these components in p
 The {{{SYS_NAME}}} doesn't introduce any changes to the piping pressure relief. All modified parts are protected by respective reliefs of the IB1 cryosystem.
 
 * Flexibility analysis
-The {{{SYS_NAME}}} creates no additional constraints to IB1 piping.
+The {{{SYS_NAME}}} is operated at a room temperature thus no flexibility calculations are required.
 
 * Welding and brazing inspection
 #+begin_comment
@@ -346,16 +341,19 @@ Procedure for pressure testing of {{{SYS_NAME}}} is attached in Appendix [[*Pres
 #+end_comment
 * Summary
 The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure that its operation presents no hazards to personnel.
-
 * Appendix
 ** Inspection forms
+#+begin_src python
+  make_pics('Examination')
+#+end_src
+
 #+begin_src python
   if CATEGORY == 'Normal':
       print('** Pressure testing permits')
       print('(Pressure test permits will be appended after this note is approved and the pressure tests are completed.)')
       print('[[./images/pressure_permit.png]]')
-  make_pics('Examination')
 #+end_src
+
 ** Pressure testing permits
 #+begin_src python
   make_pics('Pressure_test')
@@ -475,3 +473,5 @@ During this test procedure, the pressure will be increased in steps waiting at e
 3. When all leak checks have been performed and no leaks exist, depressurize the piping.
 4. Restore the system back to its original configuration.
 5. Remove the rope/barricades and signs.
+=======
+>>>>>>> GN2supply
