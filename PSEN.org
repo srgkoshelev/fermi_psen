@@ -5,8 +5,8 @@
 
 #+TITLE: Quench tanks disconnect piping amendment \newline {{{DOC_NUM}}}
 #+LATEX_CLASS_OPTIONS: [titlepage]
-#+OPTIONS: toc:nil tex:t
-#+PROPERTY: header-args:python :session *python-PSEN* :results output :exports results
+#+OPTIONS: toc:nil tex:t broken-links:t
+#+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
 
 #+MACRO: SYS_NAME LN2 withdrawal piping
 #+MACRO: P_ID F00304970
@@ -166,7 +166,7 @@ The tubing including fittings is fabricated from
 
 The respective allowable stress from Table A-1 of ASME B31.3 will be used in this analysis.
 
-The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(ureg.K):.3g~} ({T_des.to(ureg.degF):.3g})')}.
+The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(ureg.K):.3g~} ({T_des.to(ureg.degF):.3g~})')}.
 #+begin_src python
   if any(T_des < pipe.material.T_min for pipe in pipes):
     print('This is below the minimum temperature listed for any stainless steel pipe or tube. According to B31.3 Section 323.2.2, impact testing is required for this material except as stated in Table 323.2.2 Note (6) where impact testing is not required when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
@@ -475,5 +475,3 @@ During this test procedure, the pressure will be increased in steps waiting at e
 3. When all leak checks have been performed and no leaks exist, depressurize the piping.
 4. Restore the system back to its original configuration.
 5. Remove the rope/barricades and signs.
-=======
->>>>>>> GN2supply
