@@ -1,4 +1,9 @@
-#+TITLE: IB1 LN2 withdrawal piping system engineering note
+#+PROPERTY: header-args:python :session *python-QT* :results output raw :exports results
+#+MACRO: SYS_NAME Quench tanks disconnect
+#+MACRO: DOC_NUM EN04241
+#+MACRO: P_ID F00304966
+
+#+TITLE: Quench tanks disconnect piping amendment \newline {{{DOC_NUM}}}
 #+LATEX_CLASS_OPTIONS: [titlepage]
 #+OPTIONS: toc:nil tex:t
 #+PROPERTY: header-args:python :session *python-PSEN* :results output :exports results
@@ -54,8 +59,14 @@ killall python
 
 #+begin_src python :results pp output replace :exports none
   import heat_transfer as ht
-  from collections import namedtuple
-  Component = namedtuple('Component', ['name', 'size', 'source', 'P'])
+
+  class Component:
+      def __init__(self, name, size, source, P):
+          self.name = name
+          self.size = size
+          self.source = source
+          self.P = P
+
   ureg = ht.ureg
   Q_ = ht.Q_
 
@@ -87,9 +98,9 @@ killall python
 
   # TODO Separate inputs from setups
   P_des = 100 * ureg.psig
-  T_des = 32 * ureg.degF
+  T_des = 273 * ureg.K
 
-  pipes = [ht.piping.CopperTube(3/4, 'Type K')
+  pipes = [ht.piping.Pipe(1.5, SCH=10),
            ]
   E = 1
   W = 1
@@ -126,6 +137,10 @@ src_python{print(f'{T_des.to(ureg.K):.3g~}')}.
 The design pressure for {{{SYS_NAME}}} is
 src_python{print(f'{P_des.to(ureg.psig):.3g~}')}.
 
+#+CAPTION: Threaded caps locations (F00304970)
+#+NAME: fig:P_ID2
+[[./images/P_ID2.png]]
+
 * Design codes and evaluation criteria
 All the piping must meet all of the requirements of Section 5031.1 of the Fermilab ES&H Manual.
 #+begin_src python
@@ -153,27 +168,16 @@ The respective allowable stress from Table A-1 of ASME B31.3 will be used in thi
 
 The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(ureg.K):.3g~} ({T_des.to(ureg.degF):.3g})')}.
 #+begin_src python
-  aust_steel = ['304SS', '304LSS', '316SS', '321SS']
-  Col_A = pipes[0].material.T_min < T_des
-  Box_A4 = pipes[0].material.name in aust_steel and T_des < -20*ureg.degF
-  Note_5 = all(pipe.wall < 0.098*ureg.inch for pipe in pipes)
-
-  if Col_A:
-    print(f'This is below the minimum temperature listed for any {pipes[0].material.name} pipe or tube.')
-    if Box_A4:
-      print('B31.3 Table 323.2.2 A-4 states that impact testing is required for austenitic stainless steels with design temperatures < -20 F except as provided in Note (5) and Note (6).')
-      if Note_5:
-        print('According to Note 5 of Table 323.2.2, impact testing is not required for this material when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
-        print('All of the tubing and piping with design minimum temperature below -20 F used in the system has a wall thickness of less than 0.098 in. Therefore, impact testing is not required for this piping system.')
-    else:
-      print('This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.')
+  if any(T_des < pipe.material.T_min for pipe in pipes):
+    print('This is below the minimum temperature listed for any stainless steel pipe or tube. According to B31.3 Section 323.2.2, impact testing is required for this material except as stated in Table 323.2.2 Note (6) where impact testing is not required when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
+    if not any(pipe.wall >= 0.098*ureg.inch for pipe in pipes):
+      print('All of the tubing and piping with design minimum temperature below -20 F used in the {{{SYS_NAME}}} has a wall thickness of less than 0.098 in. Therefore, impact testing is not required for this piping system.')
   else:
-    print('*UPDATE DESCRIPTION*')
+    print('This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.')
 
 
 #+end_src
-
-#+RESULTS:
+The same rule applies to HAZ and welded metal.
 
 #+begin_comment
 It should also be noted that Fermilab has extensive service experience using the 300 series stainless steel at liquid nitrogen temperatures and below.
@@ -207,7 +211,6 @@ $$t=\frac{PD}{2(SEW+PY)}$$
 #+begin_src python :results table :colnames '("Piping/tubing size	D, in"	"Min wall thick, in"	"Act thick, in"	"Wall thick ratio")
   table = []
   for pipe in pipes:
-    pipe.update(S=pipe.material.S, E=E, W=W, Y=Y)
     D = str(pipe.D) + '", ' + pipe.type
     t_min = pipe.pressure_design_thick(P_des)
     t_min_s = f'{t_min.to(ureg.inch).magnitude:.3g}'
@@ -330,7 +333,7 @@ The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
   if CATEGORY == 'Normal':
       print('345.5.4.')
       print(f'For a pneumatic test, the test pressure is 110% of the design pressure ({P_des:.3g~}) or {1.1*P_des:.3g~}.')
-      print('The test medium will be gaseous nitrogen. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
+      print('The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
   if CATEGORY == 'D':
       print('345.7 initial service leak test in accordance with 345.1 (a) for Category D piping.')
 #+end_src
@@ -350,7 +353,6 @@ The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure t
 #+begin_src python
   if CATEGORY == 'Normal':
       print('** Pressure testing permits')
-      print('(Pressure test permits will be appended after this note is approved and the pressure tests are completed.)')
       print('[[./images/pressure_permit.png]]')
 #+end_src
 
