@@ -91,8 +91,8 @@
 
 * Inputs                                                           :noexport:
 #+begin_src python :results pp output replace :exports none
-  P_des = 100 * u.psig
-  T_des = 273 * u.K
+  P_des = 35 * u.psig
+  T_des = 80 * u.K
 
   # Directly measured tube stub
   OD = 1.75*u.inch
@@ -100,21 +100,26 @@
   wall = (OD - ID) / 2
   tube = ht.piping.Tube(OD, wall=wall)
 
+  # Pipe list
   pipes = [tube
            ]
   E = 1
   W = 1
   Y = 0.4
+
+  # Pressure test
   P_test = 1.1 * P_des
   pt_fluid_name = 'helium'
   pt_fluid = ht.ThermState(pt_fluid_name, P=P_test, T=ht.T_NTP)
 
+  # Listed
   listed = [
-      Component('Adadpter COP to MNPT', pipes[0].D, 'Grainger 447N97', 582*u.psi)
   ]
 
+  # Unlisted
   unlisted = [
-      Component('Valve', pipes[0].D, 'Worcester 441166', 1500*u.psi)
+      Component('CF flange', '2.75"', 'Lesker', 350*u.psi),
+      Component('Adapter', '1-1/2"x1-1/4"', 'McMaster Carr 4452K189', 300*u.psi),
   ]
 
   #################
@@ -125,7 +130,7 @@
 #+end_src
 
 #+RESULTS:
-: [('0.75" Copper tube Type K', '90 ft', '0.27 ft ** 3')]
+: [('Tube, 1.75 inx0.0625 in, L=0 m', '0 ft', '0 ft ** 3')]
 
 * Introduction
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
@@ -240,11 +245,11 @@ $$t=\frac{PD}{2(SEW+PY)}$$
 
 #+begin_src python :results table
 table = []
-table.append(['P = ', f'{P_des:.3g~}', 'Design pressure'])
-table.append(['S = ', f'{pipes[0].material.S:.0f~}', 'Allowable stress, B31.3 A-1'])
-table.append(['E = ', f'{E:.3g}', 'Quality factor, B31.3 A-1A, A-1B'])
-table.append(['W = ', f'{W:.3g}', 'Weld joint stress reduction factor, B31.3 302.3.5(e)'])
-table.append(['Y = ', f'{Y:.3g}', 'Coefficient, B31.3 304.1.1'])
+table.append(['P',' = ', f'{P_des:.3g~}', 'Design pressure'])
+table.append(['S',' = ', f'{pipes[0].material.S:.0f~}', 'Allowable stress, B31.3 A-1'])
+table.append(['E',' = ', f'{E:.3g}', 'Quality factor, B31.3 A-1A, A-1B'])
+table.append(['W',' = ', f'{W:.3g}', 'Weld joint stress reduction factor, B31.3 302.3.5(e)'])
+table.append(['Y',' = ', f'{Y:.3g}', 'Coefficient, B31.3 304.1.1'])
 print(table)
 #+end_src
 
@@ -285,6 +290,8 @@ Extensive service experience at Fermilab allows the use of these components in p
       name = component.name + ', ' + str(component.size) + '"'
       source = component.source
       P = f'{component.P.to(u.psi).magnitude:.0f}'
+      if 'CF' in component.name:
+          P += '[fn:: CF flange pressure rating taken from Conflat Analysis Report ED0004253]'
       P_des_s = f'{P_des.to(u.psig).magnitude:.0f}'
       table.append((name, source, P, P_des_s))
     return table
@@ -357,12 +364,6 @@ The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure t
 #+end_src
 
 #+RESULTS:
-
-#+begin_src python
-  if CATEGORY == 'Normal':
-      print('** Pressure testing permits')
-      print('[[./images/pressure_permit.png]]')
-#+end_src
 
 ** Pressure testing permits
 #+begin_src python
