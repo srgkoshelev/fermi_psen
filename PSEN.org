@@ -83,34 +83,44 @@
   SS304.rho = Q_('7859 kg/m**3')
   SS304.S = Q_('16700 psi')  # 304L SS allowable stress
   SS304.nu = 0.3  # Poisson's ratio
-  SS304.T_min = Q_('-425 degF')
+  SS304.T_min = Q_(-425, u.degF)
 
   copper = Material('copper')
   copper.S = Q_('6000 psi')
-  copper.T_min = Q_('-452 degF')
+  copper.T_min = Q_(-452, u.degF)
 #+end_src
 
 * Inputs                                                           :noexport:
 #+begin_src python :results pp output replace :exports none
-  P_des = 35 * u.psig
+  P_des = Q_(35, u.psig)
   T_des = 80 * u.K
+  VJ = False
+  pt_fluid_name = 'argon'  # Pressure testing fluid
+  P_des = P_des.to(ureg.psi) + (VJ-1)*ht.P_NTP
+  P_des.ito(u.psid)
 
   # Directly measured tube stub
   OD = 1.75*u.inch
   ID = 1.625*u.inch
   wall = (OD - ID) / 2
-  tube = ht.piping.Tube(OD, wall=wall)
+  tube = ht.piping.Tube(OD, wall=wall, L=5*u.inch)
 
   # Pipe list
-  pipes = [tube
-           ]
+  pipes = ht.piping.Piping(tube,
+           )
   E = 1
   W = 1
   Y = 0.4
 
+  low_stress = True
+
   # Pressure test
-  P_test = 1.1 * P_des
-  pt_fluid_name = 'helium'
+  if low_stress:
+      P_test = 0.8 * P_des
+  else:
+      P_test = 1.1 * P_des
+  P_test += ht.P_NTP  # VJ calc will probably fail here
+  P_test.ito(u.psig)
   pt_fluid = ht.ThermState(pt_fluid_name, P=P_test, T=ht.T_NTP)
 
   # Listed
@@ -122,6 +132,10 @@
       Component('CF flange', '2.75"', 'Lesker', 350*u.psi),
       Component('Adapter', '1-1/2"x1-1/4"', 'McMaster Carr 4452K189', 300*u.psi),
   ]
+
+  # Connected volumes for blast radia calc
+  con_volume = 984 * u.L
+
 
   #################
   for pipe in pipes:
@@ -143,7 +157,7 @@ The design temperature is chosen to be
 src_python{print(f'{T_des.to(u.K):.3g~}')}.
 
 The design pressure for {{{SYS_NAME}}} is
-src_python{print(f'{P_des.to(u.psig):.3g~}')}.
+src_python{print(f'{P_des:.3g~}')}.
 
 #+CAPTION: {{{SYS_NAME}}} as shown on {{{P_ID}}}
 #+NAME: fig:P_ID_
@@ -153,7 +167,7 @@ src_python{print(f'{P_des.to(u.psig):.3g~}')}.
 All the piping must meet all of the requirements of Section 5031.1 of the Fermilab ES&H Manual.
 #+begin_src python
   print('This section states that piping systems containing gas at a pressure ')
-  if P_des > 150 * u.psig or T_des < -20 * u.degF:
+  if P_des > Q_(150, u.psig) or T_des < Q_(-20, u.degF):
       CATEGORY = 'Normal'
       print('above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service ')
   else:
@@ -176,7 +190,7 @@ The respective allowable stress from Table A-1 of ASME B31.3 will be used in thi
 
 The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(u.K):.3g~} ({T_des.to(u.degF):.3g~})')}.
 #+begin_src python
-  if T_des > 29*u.degC:
+  if T_des > Q_(29, u.degC):
       print('For design temperature above 29 C, no impact testing is required according to B31.3 Table 323.2.2 A-4.')
   elif all(pipe.wall>0.098*u.inch for pipe in pipes):
       print('All of the tubing and piping with design minimum temperature below -20 F used in this system has a wall thickness of less than 0.098 in. Therefore, impact testing is not required for this piping system.')
@@ -204,7 +218,7 @@ All piping has wall thickness less than 0.359” and satisfies this requirement.
 Table [[tab:allowable_stress]] summarizes the materials used and the allowable stresses from B31.3 Table A-1.
 
 #+begin_src python :results table :colnames '("Component"	"Material"	"Allowable Stress, psi")
-  print([[pipes[0].type, pipes[0].material.name, f'{pipes[0].material.S.to(u.psi).magnitude:.0f}'], ['', '', '']])
+  print([[pipes[0].type, pipes[0].material.name, f'{pipes[0].material.S.m_as(u.psi):.0f}'], ['', '', '']])
 #+end_src
 
 #+CAPTION: Materials and Allowable Stress Values
@@ -229,9 +243,9 @@ $$t=\frac{PD}{2(SEW+PY)}$$
       name = pipe.type + ', ' + size
       OD = pipe.OD.m_as(u.inch)
       t_min = pipe.pressure_design_thick(P_des)
-      t_min_s = f'{t_min.to(u.inch).magnitude:.3g}'
+      t_min_s = f'{t_min.m_as(u.inch):.3g}'
       t_a = pipe.wall
-      t_a_s = f'{t_a.to(u.inch).magnitude:.3g}'
+      t_a_s = f'{t_a.m_as(u.inch):.3g}'
       ratio = (t_a/t_min).to_base_units()
       ratio_s = f'{ratio:.3g~}'
       table.append([name, OD, t_min_s, t_a_s, ratio_s])
@@ -282,7 +296,7 @@ All piping complies with this requirement.
 Extensive service experience at Fermilab allows the use of these components in piping systems as per B31.3 Section 304.7.2.
 #+end_comment
 
-#+begin_src python :results table :colnames '("Component" "Source and P/N" "Pressure rating, psig" "Design pressure, psig")
+#+begin_src python :results table :colnames '("Component" "Source and P/N" "Pressure rating, psid" "Design pressure, psid")
   def component_table(components):
     """Prepare a table of listed/unlisted components.
 
@@ -294,10 +308,10 @@ Extensive service experience at Fermilab allows the use of these components in p
     for component in components:
       name = component.name + ', ' + str(component.size)
       source = component.source
-      P = f'{component.P.to(u.psi).magnitude:.0f}'
+      P = f'{component.P.m_as(u.psi):.0f}'
       if 'CF' in component.name:
           P += '[fn:: CF flange pressure rating taken from Conflat Analysis Report ED0004253]'
-      P_des_s = f'{P_des.to(u.psig).magnitude:.0f}'
+      P_des_s = f'{P_des.m_as(u.psid):.0f}'
       table.append((name, source, P, P_des_s))
     return table
 
@@ -314,7 +328,7 @@ Extensive service experience at Fermilab allows the use of these components in p
 | Elbow, 0.75" | None           |                   582 |                   250 |
 | Elbow, 1"    | None           |                   494 |                   250 |
 
-#+begin_src python :results table :colnames '("Component" "Source and P/N" "Pressure rating, psig" "Design pressure, psig")
+#+begin_src python :results table :colnames '("Component" "Source and P/N" "Pressure rating, psid" "Design pressure, psid")
   if unlisted:
     print(component_table(unlisted))
 #+end_src
@@ -338,9 +352,6 @@ The {{{SYS_NAME}}} doesn't introduce any changes to the piping system configurat
 The {{{SYS_NAME}}} is operated at a room temperature thus no flexibility calculations are required.
 
 * Welding and brazing inspection
-#+begin_comment
-All welding is made and certified by Fermilab. Completed inspection forms are included in the Appendix [[*Inspection forms]].
-#+end_comment
 All brazing is made and certified by Fermilab. Code required certifications, e.g. WPS, PQR, are available at [[https://www-tdserver1.fnal.gov/tdweb/ms/Policies/Welding/index.htm][Fermi welding procedures web page]]. Completed inspection forms are included in the Appendix [[*Inspection forms]].
 
 * Pressure testing
@@ -351,20 +362,24 @@ All brazing is made and certified by Fermilab. Code required certifications, e.g
 
 The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
 #+begin_src python
-  if CATEGORY == 'Normal':
-      print('345.5.4.')
-      print(f'For a pneumatic test, the test pressure is 110% of the design pressure ({P_des:.3g~}) or {1.1*P_des:.3g~}.')
-      print('The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
-  if CATEGORY == 'D':
-      print('345.7 initial service leak test in accordance with 345.1 (a) for Category D piping.')
+  if VJ:
+      print('Check test pressure calculation')
+  else:
+    if CATEGORY == 'Normal':
+        print(' 345.5.4.')
+        percentage = (P_test-ht.P_NTP) / P_des
+        print(f'For a pneumatic test, the test pressure is {percentage:.0%} of the design pressure ({P_des:.3g~}) or {P_test:.3g~}.')
+        print('The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
+    if CATEGORY == 'D':
+        print('345.7 initial service leak test in accordance with 345.1 (a) for Category D piping.')
 #+end_src
 
 #+begin_comment
-The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3 345.5.4. For a pneumatic test, the test pressure is 110% of the design pressure (src_python{print(f'{P_des:.3g~}')}) or src_python{print(f'{P_test:.3g~}')}. The test medium will be gaseous helium.  After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
+The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3 345.5.4. For a pneumatic test, the test pressure is 110% of the design pressure (src_python{print(f'{P_des:.3g~}')}) or src_python{print(f'{P_test:.3g~}')}. The test medium will be gaseous nitrogen.  After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
 Procedure for pressure testing of {{{SYS_NAME}}} is attached in Appendix [[*Pressure testing procedure]].
 #+end_comment
 * Summary
-The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure that its operation presents no hazards to personnel.
+The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure its operation presents no hazards to personnel.
 * Appendix
 ** Inspection forms
 #+begin_src python
@@ -391,12 +406,10 @@ gas. There is potential for:
 - Striking hazard due to failure of piping or piping components
 The pressure test area will be roped off at a radius larger than an estimated blast radius (see Table [[tab:blast_radius]]).
 #+begin_src python :results table :colnames '("Test fluid" "Stored energy, kJ" "Blast radius, m")
-  piping = ht.piping.Piping(pt_fluid)
-  piping.add(*pipes)
-  E_stored = ht.stored_energy(piping)
+  E_stored = pipes.stored_energy(pt_fluid) + ht.stored_energy(pt_fluid, con_volume)
   blast_radius = ht.blast_radius(E_stored)
-  print([[str(piping.fluid), f'{E_stored.to(u.kJ).magnitude:.3g}',
-          f'{max(blast_radius).to(u.m).magnitude:.3g}']])
+  print([[str(pt_fluid), f'{E_stored.m_as(u.kJ):.3g}',
+          f'{max(blast_radius).m_as(u.m):.3g}']])
 #+end_src
 
 
