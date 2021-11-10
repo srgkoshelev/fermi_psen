@@ -1,9 +1,9 @@
 #+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
-#+MACRO: SYS_NAME Quench tanks disconnect
-#+MACRO: DOC_NUM EN04241
+#+MACRO: SYS_NAME TallBo relief piping
+#+MACRO: DOC_NUM EN05752
 #+MACRO: P_ID F00304966
 
-#+TITLE: Quench tanks disconnect piping amendment \newline {{{DOC_NUM}}}
+#+TITLE: {{{SYS_NAME}}} engineering note\newline {{{DOC_NUM}}}
 #+OPTIONS: toc:nil tex:t broken-links:t
 #+LATEX_CLASS_OPTIONS: [titlepage]
 #+LATEX_HEADER: \usepackage{xcolor}
@@ -136,10 +136,8 @@
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
 The current version of the document is maintained in Team Center {{{DOC_NUM}}}.
 
-#+begin_comment
-Remaining piping will be capped off at the tee (see [[fig:P_ID]] for details).
-#+end_comment
-The change to {{{SYS_NAME}}} described in this document is removal of part of the tubing and brazing a cap to isolate the line. N2 system at IB1 is rated
+The change to {{{SYS_NAME}}} described in this document is
+removal of part of the tubing and brazing a cap to isolate the line. N2 system at IB1 is rated
 src_python{print(f'{P_des:.3g~}')}.
 
 The design temperature is chosen to be
