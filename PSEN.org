@@ -8,6 +8,7 @@
 #+LATEX_CLASS_OPTIONS: [titlepage]
 #+LATEX_HEADER: \usepackage{xcolor}
 #+TOC: headlines 2
+#+MACRO: CHECK *CHECK/UPDATE THIS!*
 
 
 \newpage{}
@@ -133,12 +134,10 @@
 : [('Tube, 1.75 inx0.0625 in, L=0 m', '0 ft', '0 ft ** 3')]
 
 * Introduction
+New relief piping spool has been made for TallBo relief valve consisting of a CF flange, short run of pipe and a threaded adapter.
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
 The current version of the document is maintained in Team Center {{{DOC_NUM}}}.
 
-The change to {{{SYS_NAME}}} described in this document is
-removal of part of the tubing and brazing a cap to isolate the line. N2 system at IB1 is rated
-src_python{print(f'{P_des:.3g~}')}.
 
 The design temperature is chosen to be
 src_python{print(f'{T_des.to(u.K):.3g~}')}.
@@ -146,9 +145,9 @@ src_python{print(f'{T_des.to(u.K):.3g~}')}.
 The design pressure for {{{SYS_NAME}}} is
 src_python{print(f'{P_des.to(u.psig):.3g~}')}.
 
-#+CAPTION: Threaded caps locations (F00304970)
-#+NAME: fig:P_ID2
-[[./images/P_ID2.png]]
+#+CAPTION: {{{SYS_NAME}}} as shown on {{{P_ID}}}
+#+NAME: fig:P_ID_
+[[./images/P_ID_.png]]
 
 * Design codes and evaluation criteria
 All the piping must meet all of the requirements of Section 5031.1 of the Fermilab ES&H Manual.
@@ -177,15 +176,18 @@ The respective allowable stress from Table A-1 of ASME B31.3 will be used in thi
 
 The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(u.K):.3g~} ({T_des.to(u.degF):.3g~})')}.
 #+begin_src python
-  if any(T_des < pipe.material.T_min for pipe in pipes):
+  if T_des > 29*u.degC:
+      print('For design temperature above 29 C, no impact testing is required according to B31.3 Table 323.2.2 A-4.')
+  elif all(pipe.wall>0.098*u.inch for pipe in pipes):
+      print('All of the tubing and piping with design minimum temperature below -20 F used in this system has a wall thickness of less than 0.098 in. Therefore, impact testing is not required for this piping system.')
+  elif any(T_des < pipe.material.T_min for pipe in pipes):
     print('This is below the minimum temperature listed for any stainless steel pipe or tube. According to B31.3 Section 323.2.2, impact testing is required for this material except as stated in Table 323.2.2 Note (6) where impact testing is not required when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
-    if not any(pipe.wall >= 0.098*u.inch for pipe in pipes):
-      print('All of the tubing and piping with design minimum temperature below -20 F used in the {{{SYS_NAME}}} has a wall thickness of less than 0.098 in. Therefore, impact testing is not required for this piping system.')
   else:
-    print('This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.')
-
-
+    print('\n# TODO Fix logic here\nThis is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.')
 #+end_src
+
+#+RESULTS:
+
 The same rule applies to HAZ and welded metal.
 
 #+begin_comment
@@ -217,17 +219,22 @@ Table [[tab:allowable_stress]] summarizes the materials used and the allowable s
 The minimum required wall thickness is calculated using B31.3 304.1.2 and is shown in Table [[tab:pipe_wall]].
 
 $$t=\frac{PD}{2(SEW+PY)}$$
-#+begin_src python :results table :colnames '("Piping/tubing size	D, in"	"Min wall thick, in"	"Act thick, in"	"Wall thick ratio")
+#+begin_src python :results table :colnames '("Piping/tubing size"	"OD, in"	"Min wall thick, in"	"Act thick, in"	"Wall thick ratio")
   table = []
   for pipe in pipes:
-    D = str(pipe.D) + '", ' + pipe.type
-    t_min = pipe.pressure_design_thick(P_des)
-    t_min_s = f'{t_min.to(u.inch).magnitude:.3g}'
-    t_a = pipe.wall
-    t_a_s = f'{t_a.to(u.inch).magnitude:.3g}'
-    ratio = (t_a/t_min).to_base_units()
-    ratio_s = f'{ratio:.3g~}'
-    table.append([D, t_min_s, t_a_s, ratio_s])
+      if pipe.type == 'Tube':
+          size = f'{pipe.OD.m_as(u.inch):.3g}"x{pipe.wall.m_as(u.inch):.3g}"'
+      else:
+          size = 'Update this branch'
+      name = pipe.type + ', ' + size
+      OD = pipe.OD.m_as(u.inch)
+      t_min = pipe.pressure_design_thick(P_des)
+      t_min_s = f'{t_min.to(u.inch).magnitude:.3g}'
+      t_a = pipe.wall
+      t_a_s = f'{t_a.to(u.inch).magnitude:.3g}'
+      ratio = (t_a/t_min).to_base_units()
+      ratio_s = f'{ratio:.3g~}'
+      table.append([name, OD, t_min_s, t_a_s, ratio_s])
   print(table)
 
 #+end_src
@@ -235,7 +242,7 @@ $$t=\frac{PD}{2(SEW+PY)}$$
 #+CAPTION: Minimum required and actual wall thicknesses
 #+NAME: tab:pipe_wall
 #+RESULTS:
-| Piping/tubing size	D, in | Min wall thick, in | Act thick, in | Wall thick ratio |
+| Piping/tubing size        | Min wall thick, in | Act thick, in | Wall thick ratio |
 |---------------------------+--------------------+---------------+------------------|
 | 0.75", Copper tube Type K |             0.0179 |         0.065 |             3.63 |
 | 1", Copper tube Type K    |             0.0231 |         0.065 |             2.82 |
@@ -285,7 +292,7 @@ Extensive service experience at Fermilab allows the use of these components in p
     """
     table = []
     for component in components:
-      name = component.name + ', ' + str(component.size) + '"'
+      name = component.name + ', ' + str(component.size)
       source = component.source
       P = f'{component.P.to(u.psi).magnitude:.0f}'
       if 'CF' in component.name:
@@ -322,9 +329,12 @@ Extensive service experience at Fermilab allows the use of these components in p
 | Elbow, 1"    | None           |                   494 |                   250 |
 
 * Pressure relief system
-The {{{SYS_NAME}}} doesn't introduce any changes to the piping pressure relief. All modified parts are protected by respective reliefs of the IB1 cryosystem.
+The {{{SYS_NAME}}} doesn't introduce any changes to the piping system configuration. The {{{SYS_NAME}}} is protected by TallBo pressure vessel relief PSV-377.
 
 * Flexibility analysis
+
+{{{CHECK}}}
+
 The {{{SYS_NAME}}} is operated at a room temperature thus no flexibility calculations are required.
 
 * Welding and brazing inspection
