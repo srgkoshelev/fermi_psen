@@ -66,18 +66,16 @@
 
   # Unlisted
   unlisted = [
-      Component('CF flange', '2.75"', 'Lesker', 350*u.psi),
-      Component('Adapter', '1-1/2"x1-1/4"', 'McMaster Carr 4452K189', 300*u.psi),
+      Component('Butt-weld VCR gland', '1/4"', 'Swagelok', 5100*u.psi),
   ]
 
   # Connected volumes for blast radia calc
-  con_volume = 984 * u.L
+  con_volume = 0 * u.L
 
 
   #################
   for pipe in pipes:
       pipe.material = SS304
-      pipe.add_SEWY(S=pipe.material.S, E=E, W=W, Y=Y)
   print([(str(pipe), f'{pipe.L.to(u.ft):.2g~}', f'{pipe.volume.to(u.ft**3):.2g~}') for pipe in pipes])
 #+end_src
 
@@ -85,17 +83,16 @@
 : [('Tube, 1.75 inx0.0625 in, L=5 in', '0.42 ft', '0.006 ft ** 3')]
 
 * Introduction
-Short line connecting Luke ullage to the airlock.
-New relief piping spool has been made for TallBo relief valve consisting of a CF flange, short run of pipe and a threaded adapter.
+One of the steps in Luke test stand operation requires its airlock to be purged with clean argon gas. During last rebuild effort orientation of the gate valve isolating the airlock has been changed. This change has made it impossible to purge the airlock using the gas from the ullage. A new line is built to provide this capability.
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
 The current version of the document is maintained in Team Center {{{DOC_NUM}}}.
 
 
 The design temperature is chosen to be
-src_python{print(f'{T_des.to(u.K):.3g~}')} 80 K 80 K 80 K 80 K.
+src_python{print(f'{T_des.to(u.K):.3g~}')}
 
 The design pressure for {{{SYS_NAME}}} is
-src_python{print(f'{P_des:.3g~}')} 35 psid 35 psid 35 psid 35 psid.
+src_python{print(f'{P_des:.3g~}')}
 
 #+CAPTION: {{{SYS_NAME}}} as shown on {{{P_ID}}}
 #+NAME: fig:P_ID_
@@ -115,18 +112,6 @@ All the piping must meet all of the requirements of Section 5031.1 of the Fermil
 #+end_src
 
 #+RESULTS:
-This section states that piping systems containing gas at a pressure
-above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service
-and shall adhere to the requirements of the ASME Process Piping Code B31.3.
-This section states that piping systems containing gas at a pressure
-above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service
-and shall adhere to the requirements of the ASME Process Piping Code B31.3.
-This section states that piping systems containing gas at a pressure
-above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service
-and shall adhere to the requirements of the ASME Process Piping Code B31.3.
-This section states that piping systems containing gas at a pressure
-above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service
-and shall adhere to the requirements of the ASME Process Piping Code B31.3.
 
 * Materials
 The tubing including fittings is fabricated from
@@ -135,18 +120,15 @@ The tubing including fittings is fabricated from
 #+end_src
 
 #+RESULTS:
-304SS.
-304SS.
-304SS.
-304SS.
 
 The respective allowable stress from Table A-1 of ASME B31.3 will be used in this analysis.
 
-The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(u.K):.3g~} ({T_des.to(u.degF):.3g~})')} 80 K (-316 °F) 80 K (-316 °F) 80 K (-316 °F) 80 K (-316 °F).
+The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(u.K):.3g~} ({T_des.to(u.degF):.3g~})')}
+.
 #+begin_src python
   if T_des > Q_(29, u.degC):
       print('For design temperature above 29 C, no impact testing is required according to B31.3 Table 323.2.2 A-4.')
-  elif all(pipe.wall>0.098*u.inch for pipe in pipes):
+  elif all(pipe.wall<0.098*u.inch for pipe in pipes):
       print('All of the tubing and piping with design minimum temperature below -20 F used in this system has a wall thickness of less than 0.098 in. Therefore, impact testing is not required for this piping system.')
   elif any(T_des < pipe.material.T_min for pipe in pipes):
     print('This is below the minimum temperature listed for any stainless steel pipe or tube. According to B31.3 Section 323.2.2, impact testing is required for this material except as stated in Table 323.2.2 Note (6) where impact testing is not required when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
@@ -155,18 +137,6 @@ The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{
 #+end_src
 
 #+RESULTS:
-
-# TODO Fix logic here
-This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.
-
-# TODO Fix logic here
-This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.
-
-# TODO Fix logic here
-This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.
-
-# TODO Fix logic here
-This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.
 
 The same rule applies to HAZ and welded metal.
 
@@ -208,7 +178,7 @@ $$t=\frac{PD}{2(SEW+PY)}$$
           size = 'Update this branch'
       name = pipe.type + ', ' + size
       OD = pipe.OD.m_as(u.inch)
-      t_min = pipe.pressure_design_thick(P_des)
+      t_min = ht.piping.pressure_design_thick(pipe, P_des, S=pipe.material.S, E=E, W=W, Y=Y)
       t_min_s = f'{t_min.m_as(u.inch):.3g}'
       t_a = pipe.wall
       t_a_s = f'{t_a.m_as(u.inch):.3g}'
@@ -222,14 +192,6 @@ $$t=\frac{PD}{2(SEW+PY)}$$
 #+CAPTION: Minimum required and actual wall thicknesses
 #+NAME: tab:pipe_wall
 #+RESULTS:
-WARNING - Deprecated, use standalone function instead.
-[['Tube, 1.75"x0.0625"', 1.75, '0.00106', '0.0625', '58.8']]
-WARNING - Deprecated, use standalone function instead.
-[['Tube, 1.75"x0.0625"', 1.75, '0.00106', '0.0625', '58.8']]
-WARNING - Deprecated, use standalone function instead.
-[['Tube, 1.75"x0.0625"', 1.75, '0.00106', '0.0625', '58.8']]
-WARNING - Deprecated, use standalone function instead.
-[['Tube, 1.75"x0.0625"', 1.75, '0.00106', '0.0625', '58.8']]
 
 
 #+begin_src python :results table
@@ -261,10 +223,6 @@ All piping complies with this requirement.
 #+end_src
 
 #+RESULTS:
-Unlisted components, those not included in B31.3 Table 326.1 as being manufactured according to published standards, installed in the system are shown in Table [[tab:unlisted]].
-Unlisted components, those not included in B31.3 Table 326.1 as being manufactured according to published standards, installed in the system are shown in Table [[tab:unlisted]].
-Unlisted components, those not included in B31.3 Table 326.1 as being manufactured according to published standards, installed in the system are shown in Table [[tab:unlisted]].
-Unlisted components, those not included in B31.3 Table 326.1 as being manufactured according to published standards, installed in the system are shown in Table [[tab:unlisted]].
 
 #+begin_comment
 Extensive service experience at Fermilab allows the use of these components in piping systems as per B31.3 Section 304.7.2.
@@ -327,11 +285,6 @@ The {{{SYS_NAME}}} is operated at a room temperature thus no flexibility calcula
 All brazing is made and certified by Fermilab. Code required certifications, e.g. WPS, PQR, are available at [[https://www-tdserver1.fnal.gov/tdweb/ms/Policies/Welding/index.htm][Fermi welding procedures web page]]. Completed inspection forms are included in the Appendix [[*Inspection forms]].
 
 * Pressure testing
-#+begin_comment
-345.2.5 for jacketed piping
-67.5 psig with insulating vacuum
-#+end_comment
-
 The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
 #+begin_src python
   if VJ:
@@ -347,18 +300,6 @@ The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
 #+end_src
 
 #+RESULTS:
- 345.5.4.
-For a pneumatic test, the test pressure is 80% delta_pound_force_per_square_inch_gauge / delta_pound_force_per_square_inch of the design pressure (35 psid) or 28 psig.
-The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
- 345.5.4.
-For a pneumatic test, the test pressure is 80% delta_pound_force_per_square_inch_gauge / delta_pound_force_per_square_inch of the design pressure (35 psid) or 28 psig.
-The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
- 345.5.4.
-For a pneumatic test, the test pressure is 80% delta_pound_force_per_square_inch_gauge / delta_pound_force_per_square_inch of the design pressure (35 psid) or 28 psig.
-The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
- 345.5.4.
-For a pneumatic test, the test pressure is 80% delta_pound_force_per_square_inch_gauge / delta_pound_force_per_square_inch of the design pressure (35 psid) or 28 psig.
-The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
 
 #+begin_comment
 The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3 345.5.4. For a pneumatic test, the test pressure is 110% of the design pressure (src_python{print(f'{P_des:.3g~}')}) or src_python{print(f'{P_test:.3g~}')}. The test medium will be gaseous nitrogen.  After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
@@ -387,7 +328,7 @@ The areas around the piping system must be roped off or barricaded to keep perso
 
 *** Hazards
 This is a pneumatic pressure test utilizing compressed
-src_python{print(f'{pt_fluid_name}')} argon argon argon argon
+src_python{print(f'{pt_fluid_name}')}
 gas. There is potential for:
 - Exposure to an asphyxiant
 - Sudden release of pressure from piping
