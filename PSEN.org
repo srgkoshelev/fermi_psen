@@ -1,7 +1,7 @@
 #+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
-#+MACRO: SYS_NAME TallBo relief piping
-#+MACRO: DOC_NUM EN05752
-#+MACRO: P_ID F00304966
+#+MACRO: SYS_NAME Luke airlock purge line
+#+MACRO: DOC_NUM EN07996
+#+MACRO: P_ID F10143165
 
 #+TITLE: {{{SYS_NAME}}} engineering note\newline {{{DOC_NUM}}}
 #+OPTIONS: toc:nil tex:t broken-links:t
@@ -12,60 +12,8 @@
 
 
 \newpage{}
-#+begin_src python :results pp replace :exports none :noweb yes
-  from wand.image import Image
-  import fnmatch
-  import re
-  <<ht_preamble>>
-
-  def make_pics(fname):
-      """Create pictures of a PDF file with a given name"""
-      pics = sorted(fnmatch.filter(os.listdir('images'), f'{fname}*.png'))
-      if not pics:
-          try:
-            with Image(filename=f'images/{fname}.pdf', resolution = 200) as img:
-                with img.convert('png') as converted:
-                    converted.save(filename=f'images/{fname}_page.png')
-          except Exception as e:
-              print(missing_file_error(e, fname))
-      for pic_fn in pics:
-          print(r'#+ATTR_LATEX: :width \textwidth')
-          print(f'[[./images/{pic_fn}]]')
-      return None
-
-  def missing_file_error(error, fname):
-      """Formats into Latex an error message for missing file."""
-      message = str(error)
-      if fname in message:
-          err_message = r'\colorbox{red}{' + \
-              f'Missing {fname} file'.replace("_", " ") + '}'
-          return err_message
-      else:
-          return error
-
-
-  class Component:
-      def __init__(self, name, size, source, P):
-          self.name = name
-          self.size = size
-          self.source = source
-          self.P = P
-
-  class Material():
-      """Basic material class."""
-      def __init__(self, name):
-          self.name = name  # will be used in property calculations
-
-          def kappa(self, T1, T2=None):
-              """Calculate temperature conductivity at a given temperature."""
-              return ht.nist_property(self.name, 'TC', T1, T2)
-
-          def lin_exp(self, T):
-              """Calculate linear expansion for given temperature"""
-              try:
-                  return ht.nist_property(self.name, 'LE', T)
-              except KeyError:
-                  return ht.nist_property(self.name, 'EC', 293*u.K, T)*(T-293*u.K)
+#+begin_src python :results pp replace :exports none
+  from header import *
 #+end_src
 
 #+RESULTS:
@@ -75,20 +23,9 @@
 #+end_src
 
 #+RESULTS:
+: [Errno 2] No such file or directory: 'images'
 
 \newpage{}
-* Definitions                                                      :noexport:
-#+begin_src python :results pp output replace :exports none
-  SS304 = Material('304SS')
-  SS304.rho = Q_('7859 kg/m**3')
-  SS304.S = Q_('16700 psi')  # 304L SS allowable stress
-  SS304.nu = 0.3  # Poisson's ratio
-  SS304.T_min = Q_(-425, u.degF)
-
-  copper = Material('copper')
-  copper.S = Q_('6000 psi')
-  copper.T_min = Q_(-452, u.degF)
-#+end_src
 
 * Inputs                                                           :noexport:
 #+begin_src python :results pp output replace :exports none
@@ -145,19 +82,20 @@
 #+end_src
 
 #+RESULTS:
-: [('Tube, 1.75 inx0.0625 in, L=0 m', '0 ft', '0 ft ** 3')]
+: [('Tube, 1.75 inx0.0625 in, L=5 in', '0.42 ft', '0.006 ft ** 3')]
 
 * Introduction
+Short line connecting Luke ullage to the airlock.
 New relief piping spool has been made for TallBo relief valve consisting of a CF flange, short run of pipe and a threaded adapter.
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
 The current version of the document is maintained in Team Center {{{DOC_NUM}}}.
 
 
 The design temperature is chosen to be
-src_python{print(f'{T_des.to(u.K):.3g~}')}.
+src_python{print(f'{T_des.to(u.K):.3g~}')} 80 K 80 K 80 K 80 K.
 
 The design pressure for {{{SYS_NAME}}} is
-src_python{print(f'{P_des:.3g~}')}.
+src_python{print(f'{P_des:.3g~}')} 35 psid 35 psid 35 psid 35 psid.
 
 #+CAPTION: {{{SYS_NAME}}} as shown on {{{P_ID}}}
 #+NAME: fig:P_ID_
@@ -177,6 +115,18 @@ All the piping must meet all of the requirements of Section 5031.1 of the Fermil
 #+end_src
 
 #+RESULTS:
+This section states that piping systems containing gas at a pressure
+above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service
+and shall adhere to the requirements of the ASME Process Piping Code B31.3.
+This section states that piping systems containing gas at a pressure
+above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service
+and shall adhere to the requirements of the ASME Process Piping Code B31.3.
+This section states that piping systems containing gas at a pressure
+above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service
+and shall adhere to the requirements of the ASME Process Piping Code B31.3.
+This section states that piping systems containing gas at a pressure
+above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service
+and shall adhere to the requirements of the ASME Process Piping Code B31.3.
 
 * Materials
 The tubing including fittings is fabricated from
@@ -185,10 +135,14 @@ The tubing including fittings is fabricated from
 #+end_src
 
 #+RESULTS:
+304SS.
+304SS.
+304SS.
+304SS.
 
 The respective allowable stress from Table A-1 of ASME B31.3 will be used in this analysis.
 
-The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(u.K):.3g~} ({T_des.to(u.degF):.3g~})')}.
+The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(u.K):.3g~} ({T_des.to(u.degF):.3g~})')} 80 K (-316 °F) 80 K (-316 °F) 80 K (-316 °F) 80 K (-316 °F).
 #+begin_src python
   if T_des > Q_(29, u.degC):
       print('For design temperature above 29 C, no impact testing is required according to B31.3 Table 323.2.2 A-4.')
@@ -201,6 +155,18 @@ The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{
 #+end_src
 
 #+RESULTS:
+
+# TODO Fix logic here
+This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.
+
+# TODO Fix logic here
+This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.
+
+# TODO Fix logic here
+This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.
+
+# TODO Fix logic here
+This is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.
 
 The same rule applies to HAZ and welded metal.
 
@@ -224,10 +190,10 @@ Table [[tab:allowable_stress]] summarizes the materials used and the allowable s
 #+CAPTION: Materials and Allowable Stress Values
 #+NAME: tab:allowable_stress
 #+RESULTS:
-| Component          | Material | Allowable Stress, psi |
-|--------------------+----------+-----------------------|
-| Copper tube Type K | copper   |                  6000 |
-|                    |          |                       |
+| Component | Material | Allowable Stress, psi |
+|-----------+----------+-----------------------|
+| Tube      | 304SS    |                 16700 |
+|           |          |                       |
 
 * Piping design and analysis
 The minimum required wall thickness is calculated using B31.3 304.1.2 and is shown in Table [[tab:pipe_wall]].
@@ -256,10 +222,14 @@ $$t=\frac{PD}{2(SEW+PY)}$$
 #+CAPTION: Minimum required and actual wall thicknesses
 #+NAME: tab:pipe_wall
 #+RESULTS:
-| Piping/tubing size        | Min wall thick, in | Act thick, in | Wall thick ratio |
-|---------------------------+--------------------+---------------+------------------|
-| 0.75", Copper tube Type K |             0.0179 |         0.065 |             3.63 |
-| 1", Copper tube Type K    |             0.0231 |         0.065 |             2.82 |
+WARNING - Deprecated, use standalone function instead.
+[['Tube, 1.75"x0.0625"', 1.75, '0.00106', '0.0625', '58.8']]
+WARNING - Deprecated, use standalone function instead.
+[['Tube, 1.75"x0.0625"', 1.75, '0.00106', '0.0625', '58.8']]
+WARNING - Deprecated, use standalone function instead.
+[['Tube, 1.75"x0.0625"', 1.75, '0.00106', '0.0625', '58.8']]
+WARNING - Deprecated, use standalone function instead.
+[['Tube, 1.75"x0.0625"', 1.75, '0.00106', '0.0625', '58.8']]
 
 
 #+begin_src python :results table
@@ -275,11 +245,11 @@ print(table)
 #+CAPTION: Values for wall thickness calculation
 #+NAME: tab:des_parameters
 #+RESULTS:
-| P = | 250 psig | Design pressure                                      |
-| S = | 6000 psi | Allowable stress, B31.3 A-1                          |
-| E = |        1 | Quality factor, B31.3 A-1A, A-1B                     |
-| W = |        1 | Weld joint stress reduction factor, B31.3 302.3.5(e) |
-| Y = |      0.4 | Coefficient, B31.3 304.1.1                           |
+| P | = |   35 psid | Design pressure                                      |
+| S | = | 16700 psi | Allowable stress, B31.3 A-1                          |
+| E | = |         1 | Quality factor, B31.3 A-1A, A-1B                     |
+| W | = |         1 | Weld joint stress reduction factor, B31.3 302.3.5(e) |
+| Y | = |       0.4 | Coefficient, B31.3 304.1.1                           |
 
 All piping complies with this requirement.
 
@@ -291,6 +261,10 @@ All piping complies with this requirement.
 #+end_src
 
 #+RESULTS:
+Unlisted components, those not included in B31.3 Table 326.1 as being manufactured according to published standards, installed in the system are shown in Table [[tab:unlisted]].
+Unlisted components, those not included in B31.3 Table 326.1 as being manufactured according to published standards, installed in the system are shown in Table [[tab:unlisted]].
+Unlisted components, those not included in B31.3 Table 326.1 as being manufactured according to published standards, installed in the system are shown in Table [[tab:unlisted]].
+Unlisted components, those not included in B31.3 Table 326.1 as being manufactured according to published standards, installed in the system are shown in Table [[tab:unlisted]].
 
 #+begin_comment
 Extensive service experience at Fermilab allows the use of these components in piping systems as per B31.3 Section 304.7.2.
@@ -319,14 +293,12 @@ Extensive service experience at Fermilab allows the use of these components in p
     print(component_table(listed))
 #+end_src
 
+#+RESULTS:
+
 #+CAPTION: Listed piping components.
 #+NAME: tab:listed
 #+ATTR_LATEX: :align p{2cm}p{3cm}rr
 #+RESULTS:
-| Component    | Source and P/N | Pressure rating, psig | Design pressure, psig |
-|--------------+----------------+-----------------------+-----------------------|
-| Elbow, 0.75" | None           |                   582 |                   250 |
-| Elbow, 1"    | None           |                   494 |                   250 |
 
 #+begin_src python :results table :colnames '("Component" "Source and P/N" "Pressure rating, psid" "Design pressure, psid")
   if unlisted:
@@ -337,10 +309,10 @@ Extensive service experience at Fermilab allows the use of these components in p
 #+NAME: tab:unlisted
 #+ATTR_LATEX: :align p{2cm}p{3cm}rr
 #+RESULTS:
-| Component    | Source and P/N | Pressure rating, psig | Design pressure, psig |
-|--------------+----------------+-----------------------+-----------------------|
-| Elbow, 0.75" | None           |                   582 |                   250 |
-| Elbow, 1"    | None           |                   494 |                   250 |
+| Component              | Source and P/N         | Pressure rating, psid                                                            | Design pressure, psid |
+|------------------------+------------------------+----------------------------------------------------------------------------------+-----------------------|
+| CF flange, 2.75"       | Lesker                 | 350[fn:: CF flange pressure rating taken from Conflat Analysis Report ED0004253] |                    35 |
+| Adapter, 1-1/2"x1-1/4" | McMaster Carr 4452K189 | 300                                                                              |                    35 |
 
 * Pressure relief system
 The {{{SYS_NAME}}} doesn't introduce any changes to the piping system configuration. The {{{SYS_NAME}}} is protected by TallBo pressure vessel relief PSV-377.
@@ -374,6 +346,20 @@ The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
         print('345.7 initial service leak test in accordance with 345.1 (a) for Category D piping.')
 #+end_src
 
+#+RESULTS:
+ 345.5.4.
+For a pneumatic test, the test pressure is 80% delta_pound_force_per_square_inch_gauge / delta_pound_force_per_square_inch of the design pressure (35 psid) or 28 psig.
+The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
+ 345.5.4.
+For a pneumatic test, the test pressure is 80% delta_pound_force_per_square_inch_gauge / delta_pound_force_per_square_inch of the design pressure (35 psid) or 28 psig.
+The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
+ 345.5.4.
+For a pneumatic test, the test pressure is 80% delta_pound_force_per_square_inch_gauge / delta_pound_force_per_square_inch of the design pressure (35 psid) or 28 psig.
+The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
+ 345.5.4.
+For a pneumatic test, the test pressure is 80% delta_pound_force_per_square_inch_gauge / delta_pound_force_per_square_inch of the design pressure (35 psid) or 28 psig.
+The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
+
 #+begin_comment
 The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3 345.5.4. For a pneumatic test, the test pressure is 110% of the design pressure (src_python{print(f'{P_des:.3g~}')}) or src_python{print(f'{P_test:.3g~}')}. The test medium will be gaseous nitrogen.  After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
 Procedure for pressure testing of {{{SYS_NAME}}} is attached in Appendix [[*Pressure testing procedure]].
@@ -393,13 +379,15 @@ The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure i
   make_pics('Pressure_test')
 #+end_src
 
+#+RESULTS:
+
 ** Pressure testing procedure
 *** Safety
 The areas around the piping system must be roped off or barricaded to keep personnel out of the test area during the execution of this procedure.  Signs are to be posted warning personnel that a pressure test is in progress and to keep out of the area (per FESHM 5034 7.1.b.).  Follow Fermilab FESHM guidelines for proper PPE.
 
 *** Hazards
 This is a pneumatic pressure test utilizing compressed
-src_python{print(f'{pt_fluid_name}')}
+src_python{print(f'{pt_fluid_name}')} argon argon argon argon
 gas. There is potential for:
 - Exposure to an asphyxiant
 - Sudden release of pressure from piping
@@ -416,10 +404,9 @@ The pressure test area will be roped off at a radius larger than an estimated bl
 #+CAPTION: Safety radius
 #+NAME: tab:blast_radius
 #+RESULTS:
-| Test fluid                           | Stored energy     | Blast radius |
-|--------------------------------------+-------------------+--------------|
-| Helium at T = 293 K and P = 290 psi. | 2.25e+04 ft * lbf | 15.9 ft      |
-|                                      |                   |              |
+| Test fluid                         | Stored energy, kJ | Blast radius, m |
+|------------------------------------+-------------------+-----------------|
+| Argon at T: 293 K and P: 42.7 psi. |               151 |            8.27 |
 
 Ensure that the piping is securely mounted (per FESHM 5034 7.1.b.).
 
