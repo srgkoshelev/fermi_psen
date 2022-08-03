@@ -23,35 +23,38 @@
 #+end_src
 
 #+RESULTS:
-: [Errno 2] No such file or directory: 'images'
 
 \newpage{}
 
 * Inputs                                                           :noexport:
 #+begin_src python :results pp output replace :exports none
-  P_des = Q_(35, u.psig)
-  T_des = 80 * u.K
-  VJ = False
-  pt_fluid_name = 'argon'  # Pressure testing fluid
+  P_des = Q_(35, u.psig)  # Design pressure
+  T_des = 77 * u.K  # Design temperature
+  # TODO make design temperature a range
+  VJ = False  # Is piping vacuum jacketed?
+  pt_fluid_name = 'nitrogen'  # Pressure testing fluid
+
   P_des = P_des.to(ureg.psi) + (VJ-1)*ht.P_NTP
   P_des.ito(u.psid)
 
-  # Directly measured tube stub
-  OD = 1.75*u.inch
-  ID = 1.625*u.inch
-  wall = (OD - ID) / 2
-  tube = ht.piping.Tube(OD, wall=wall, L=5*u.inch)
-
   # Pipe list
+  tube = ht.piping.Tube(0.25*u.inch, wall=0.022*u.inch, L=1*u.ft)
+
   pipes = ht.piping.Piping(tube,
            )
   E = 1
   W = 1
   Y = 0.4
 
-  low_stress = True
+  # Defining pipe materials
+  for pipe in pipes:
+      pipe.material = SS304
 
-  # Pressure test
+  # Check for low stress requirements
+  low_stress = check_low_stress(P_des, T_des, [*pipes, *listed, *unlisted],
+                         E=E, W=W, Y=Y)
+
+  # Pressure test pressure
   if low_stress:
       P_test = 0.8 * P_des
   else:
@@ -60,27 +63,27 @@
   P_test.ito(u.psig)
   pt_fluid = ht.ThermState(pt_fluid_name, P=P_test, T=ht.T_NTP)
 
-  # Listed
+  # Listed components
   listed = [
   ]
 
-  # Unlisted
+  # Unlisted components
   unlisted = [
-      Component('Butt-weld VCR gland', '1/4"', 'Swagelok', 5100*u.psi),
+      Component('Butt-weld VCR gland', '1/4"', 'Swagelok',
+                material=SS316, P=5100*u.psi),
   ]
 
   # Connected volumes for blast radia calc
   con_volume = 0 * u.L
 
 
-  #################
-  for pipe in pipes:
-      pipe.material = SS304
+  # Printing piping info for the cover page
   print([(str(pipe), f'{pipe.L.to(u.ft):.2g~}', f'{pipe.volume.to(u.ft**3):.2g~}') for pipe in pipes])
 #+end_src
 
 #+RESULTS:
-: [('Tube, 1.75 inx0.0625 in, L=5 in', '0.42 ft', '0.006 ft ** 3')]
+: [('Tube, 0.25 inx0.022 in, L=1 ft', '1 ft', '0.00023 ft ** 3')]
+: True
 
 * Introduction
 One of the steps in Luke test stand operation requires its airlock to be purged with clean argon gas. During last rebuild effort orientation of the gate valve isolating the airlock has been changed. This change has made it impossible to purge the airlock using the gas from the ullage. A new line is built to provide this capability.
@@ -116,7 +119,8 @@ All the piping must meet all of the requirements of Section 5031.1 of the Fermil
 * Materials
 The tubing including fittings is fabricated from
 #+begin_src python
-  print(pipes[0].material.name+'.')
+  materials = get_materials(*pipes, *listed, *unlisted)
+  print(summarize_material(materials)+'.')
 #+end_src
 
 #+RESULTS:
@@ -129,7 +133,7 @@ The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{
   if T_des > Q_(29, u.degC):
       print('For design temperature above 29 C, no impact testing is required according to B31.3 Table 323.2.2 A-4.')
   elif all(pipe.wall<0.098*u.inch for pipe in pipes):
-      print('All of the tubing and piping with design minimum temperature below -20 F used in this system has a wall thickness of less than 0.098 in. Therefore, impact testing is not required for this piping system.')
+      print('All of the tubing and piping with design minimum temperature below -20 F used in this system has a wall thickness of less than 0.098 in. In accordance with B31.3 Table 323.2.2 Note (5), impact testing is not required for this piping system.')
   elif any(T_des < pipe.material.T_min for pipe in pipes):
     print('This is below the minimum temperature listed for any stainless steel pipe or tube. According to B31.3 Section 323.2.2, impact testing is required for this material except as stated in Table 323.2.2 Note (6) where impact testing is not required when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
   else:
@@ -153,17 +157,24 @@ All piping has wall thickness less than 0.359” and satisfies this requirement.
 #+end_comment
 Table [[tab:allowable_stress]] summarizes the materials used and the allowable stresses from B31.3 Table A-1.
 
-#+begin_src python :results table :colnames '("Component"	"Material"	"Allowable Stress, psi")
-  print([[pipes[0].type, pipes[0].material.name, f'{pipes[0].material.S.m_as(u.psi):.0f}'], ['', '', '']])
+#+begin_src python :results table
+  material_table = [['Component', 'Material', 'Allowable stress, psi'], None]
+  for material in materials:
+      material_table.append((material[0], material[1].name,
+                            f'{material[1].S.m_as(u.psi):.0f}'))
+  print(material_table)
+  # print([[pipes[0].type, pipes[0].material.name, f'{pipes[0].material.S.m_as(u.psi):.0f}'], ['', '', '']])
 #+end_src
+
+#+RESULTS:
+| Component | Material | Allowable stress, psi |
+|-----------+----------+-----------------------|
+| Fitting   | 316SS    |                 20000 |
+| Tube      | 304SS    |                 16700 |
 
 #+CAPTION: Materials and Allowable Stress Values
 #+NAME: tab:allowable_stress
 #+RESULTS:
-| Component | Material | Allowable Stress, psi |
-|-----------+----------+-----------------------|
-| Tube      | 304SS    |                 16700 |
-|           |          |                       |
 
 * Piping design and analysis
 The minimum required wall thickness is calculated using B31.3 304.1.2 and is shown in Table [[tab:pipe_wall]].
@@ -213,7 +224,7 @@ print(table)
 | W | = |         1 | Weld joint stress reduction factor, B31.3 302.3.5(e) |
 | Y | = |       0.4 | Coefficient, B31.3 304.1.1                           |
 
-All piping complies with this requirement.
+All piping complies with the B31.3 304 requirements for straight piping under internal pressure.
 
 #+begin_src python :results replace
   if listed:
@@ -251,12 +262,14 @@ Extensive service experience at Fermilab allows the use of these components in p
     print(component_table(listed))
 #+end_src
 
-#+RESULTS:
-
 #+CAPTION: Listed piping components.
 #+NAME: tab:listed
 #+ATTR_LATEX: :align p{2cm}p{3cm}rr
 #+RESULTS:
+| Component              | Source and P/N         | Pressure rating, psid                                                            | Design pressure, psid |
+|------------------------+------------------------+----------------------------------------------------------------------------------+-----------------------|
+| CF flange, 2.75"       | Lesker                 | 350[fn:: CF flange pressure rating taken from Conflat Analysis Report ED0004253] |                    35 |
+| Adapter, 1-1/2"x1-1/4" | McMaster Carr 4452K189 | 300                                                                              |                    35 |
 
 #+begin_src python :results table :colnames '("Component" "Source and P/N" "Pressure rating, psid" "Design pressure, psid")
   if unlisted:
@@ -272,8 +285,15 @@ Extensive service experience at Fermilab allows the use of these components in p
 | CF flange, 2.75"       | Lesker                 | 350[fn:: CF flange pressure rating taken from Conflat Analysis Report ED0004253] |                    35 |
 | Adapter, 1-1/2"x1-1/4" | McMaster Carr 4452K189 | 300                                                                              |                    35 |
 
+#+begin_src python
+  if low_stress:
+      print('This piping satisfies all FESHM 5031.1 requirements for low stress piping.')
+#+end_src
+
+#+RESULTS:
+
 * Pressure relief system
-The {{{SYS_NAME}}} doesn't introduce any changes to the piping system configuration. The {{{SYS_NAME}}} is protected by TallBo pressure vessel relief PSV-377.
+The {{{SYS_NAME}}} doesn't introduce any changes to the piping system configuration. The {{{SYS_NAME}}} is protected by Luke pressure vessel relief PSV-210-Ar. No liquid can be trapped between the valves in this tubing and its thickness is sufficient to handle expanded vapor in trapped volume case.
 
 * Flexibility analysis
 
@@ -293,8 +313,9 @@ The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
     if CATEGORY == 'Normal':
         print(' 345.5.4.')
         percentage = (P_test-ht.P_NTP) / P_des
-        print(f'For a pneumatic test, the test pressure is {percentage:.0%} of the design pressure ({P_des:.3g~}) or {P_test:.3g~}.')
-        print('The test medium will be gaseous helium. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
+        percentage.ito_base_units()
+        print(f'For a pneumatic test, the test pressure is {percentage:.0%~} of the design pressure ({P_des:.3g~}) or {P_test:.3g~}.')
+        print('The test medium will be gaseous {pt_fluid.name}. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
     if CATEGORY == 'D':
         print('345.7 initial service leak test in accordance with 345.1 (a) for Category D piping.')
 #+end_src
@@ -365,9 +386,9 @@ Refer to Figure [[fig:setup]] for the layout of the test equipment.  The specifi
 #+NAME: tab:equipment
 #+CAPTION: Test Equipment Component Specification
 | Component | Description           | Range                        |
-| PI-1      | Supply Pressure Gauge | 400 psig                     |
-| PSV-1     | Safety Relief Valve   | 300 psig (cracking pressure) |
-| PI-3      | Test Pressure Gauge   | 400 psig                     |
+| PI-1      | Supply Pressure Gauge | 60 psig                     |
+| PSV-1     | Safety Relief Valve   | 30 psig (cracking pressure)  |
+| PI-3      | Test Pressure Gauge   | 60 psig                      |
 
 *** Test Preparation
 **** Isolate the piping from other portions of the facility.
