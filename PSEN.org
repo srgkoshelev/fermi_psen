@@ -50,6 +50,16 @@
   for pipe in pipes:
       pipe.material = SS304
 
+  # Listed components
+  listed = [
+  ]
+
+  # Unlisted components
+  unlisted = [
+      Component('Butt-weld VCR gland', '1/4"', 'Swagelok',
+                material=SS316, P=5100*u.psi),
+  ]
+
   # Check for low stress requirements
   low_stress = check_low_stress(P_des, T_des, [*pipes, *listed, *unlisted],
                          E=E, W=W, Y=Y)
@@ -62,16 +72,6 @@
   P_test += ht.P_NTP  # VJ calc will probably fail here
   P_test.ito(u.psig)
   pt_fluid = ht.ThermState(pt_fluid_name, P=P_test, T=ht.T_NTP)
-
-  # Listed components
-  listed = [
-  ]
-
-  # Unlisted components
-  unlisted = [
-      Component('Butt-weld VCR gland', '1/4"', 'Swagelok',
-                material=SS316, P=5100*u.psi),
-  ]
 
   # Connected volumes for blast radia calc
   con_volume = 0 * u.L
@@ -166,15 +166,13 @@ Table [[tab:allowable_stress]] summarizes the materials used and the allowable s
   # print([[pipes[0].type, pipes[0].material.name, f'{pipes[0].material.S.m_as(u.psi):.0f}'], ['', '', '']])
 #+end_src
 
+#+CAPTION: Materials and Allowable Stress Values
+#+NAME: tab:allowable_stress
 #+RESULTS:
 | Component | Material | Allowable stress, psi |
 |-----------+----------+-----------------------|
 | Fitting   | 316SS    |                 20000 |
 | Tube      | 304SS    |                 16700 |
-
-#+CAPTION: Materials and Allowable Stress Values
-#+NAME: tab:allowable_stress
-#+RESULTS:
 
 * Piping design and analysis
 The minimum required wall thickness is calculated using B31.3 304.1.2 and is shown in Table [[tab:pipe_wall]].
@@ -338,7 +336,7 @@ The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure i
 
 ** Pressure testing permits
 #+begin_src python
-  make_pics('Pressure_test')
+  make_pics('Pressure Testing Permit')
 #+end_src
 
 #+RESULTS:
