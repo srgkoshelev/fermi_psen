@@ -24,6 +24,7 @@ def make_pics(fname):
                     converted.save(filename=f'images/{fname}_page.png')
         except Exception as e:
             print(missing_file_error(e, fname))
+    pics = sorted(fnmatch.filter(os.listdir('images'), f'{fname}*.png'))
     for pic_fn in pics:
         print(r'#+ATTR_LATEX: :width \textwidth')
         print(f'[[./images/{pic_fn}]]')
