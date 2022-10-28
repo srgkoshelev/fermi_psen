@@ -1,7 +1,7 @@
 #+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
-#+MACRO: SYS_NAME Luke airlock purge line
-#+MACRO: DOC_NUM EN07996
-#+MACRO: P_ID F10143165
+#+MACRO: SYS_NAME LAr dewar sampling line
+#+MACRO: DOC_NUM EN08795
+#+MACRO: P_ID N/A
 
 #+TITLE: {{{SYS_NAME}}} engineering note\newline {{{DOC_NUM}}}
 #+OPTIONS: toc:nil tex:t broken-links:t
@@ -28,19 +28,18 @@
 
 * Inputs                                                           :noexport:
 #+begin_src python :results pp output replace :exports none
-  P_des = Q_(35, u.psig)  # Design pressure
+  P_des = Q_(15, u.psig)  # Design pressure
   T_des = 77 * u.K  # Design temperature
   # TODO make design temperature a range
   VJ = False  # Is piping vacuum jacketed?
   pt_fluid_name = 'nitrogen'  # Pressure testing fluid
 
-  P_des = P_des.to(ureg.psi) + (VJ-1)*ht.P_NTP
-  P_des.ito(u.psid)
-
   # Pipe list
-  tube = ht.piping.Tube(0.25*u.inch, wall=0.022*u.inch, L=1*u.ft)
+  SS_tube = ht.piping.Tube(0.25*u.inch, wall=0.022*u.inch, L=29*u.ft)
+  copper_tube = ht.piping.CopperTube(0.25*u.inch, type_="M")  # conservative
 
-  pipes = ht.piping.Piping(tube,
+  pipes = ht.piping.Piping(SS_tube,
+                           copper_tube
            )
   E = 1
   W = 1
@@ -59,8 +58,17 @@
       Component('Butt-weld VCR gland', '1/4"', 'Swagelok',
                 material=SS316, P=5100*u.psi),
   ]
+#+end_src
 
+#+RESULTS:
+: [('Tube, 0.25 inx0.022 in, L=1 ft', '1 ft', '0.00023 ft ** 3')]
+: True
+
+#+begin_src python :results p output replace :exports none
   # Check for low stress requirements
+  P_des = P_des.to(ureg.psi) + (VJ-1)*ht.P_NTP
+  P_des.ito(u.psid)
+
   low_stress = check_low_stress(P_des, T_des, [*pipes, *listed, *unlisted],
                          E=E, W=W, Y=Y)
 
@@ -80,11 +88,6 @@
   # Printing piping info for the cover page
   print([(str(pipe), f'{pipe.L.to(u.ft):.2g~}', f'{pipe.volume.to(u.ft**3):.2g~}') for pipe in pipes])
 #+end_src
-
-#+RESULTS:
-: [('Tube, 0.25 inx0.022 in, L=1 ft', '1 ft', '0.00023 ft ** 3')]
-: True
-
 * Introduction
 One of the steps in Luke test stand operation requires its airlock to be purged with clean argon gas. During last rebuild effort orientation of the gate valve isolating the airlock has been changed. This change has made it impossible to purge the airlock using the gas from the ullage. A new line is built to provide this capability.
 This document constitutes the piping engineering note for {{{SYS_NAME}}}.
