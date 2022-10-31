@@ -91,13 +91,16 @@ def summarize_material(materials):
     material_names = set()
     for material in materials:
         material_names.add(material[1].name)
-    if len(material_names) == 1:
-        return list(material_names)[0]
-    elif all([re.search('^3.*SS$', name) for name in material_names]):
-        return '300 series stainless steel'
+    if is_300_series(material_names):
+        result = ', '.join([name for name in sorted(material_names) if re.search('^3.*SS$', name) is None])
+        return result + ', and 300 series stainless steel'
     else:
-        return format_err_msg('Different materials used, correct manually')
+        result = [name for name in sorted(material_names)]
+        result[-1] = 'and ' + result[-1]
+        return ', '.join(result)
 
+def is_300_series(material_names):
+    return len([name for name in material_names if re.search('^3.*SS$', name) is not None]) > 1
 
 def check_low_stress(P_des, T_des, components, *, E, W, Y):
     """Check whether the piping system satisfies low stress piping requirements
