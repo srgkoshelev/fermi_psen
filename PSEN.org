@@ -302,6 +302,9 @@ Extensive service experience at Fermilab allows the use of these components in p
 #+RESULTS:
 
 * Pressure relief system
+
+{{{CHECK}}}
+
 The {{{SYS_NAME}}} doesn't introduce any changes to the piping system configuration. The {{{SYS_NAME}}} is protected by Luke pressure vessel relief PSV-210-Ar. No liquid can be trapped between the valves in this tubing and its thickness is sufficient to handle expanded vapor in trapped volume case.
 
 * Flexibility analysis
