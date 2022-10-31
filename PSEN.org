@@ -204,16 +204,24 @@ $$t=\frac{PD}{2(SEW+PY)}$$
 #+CAPTION: Minimum required and actual wall thicknesses
 #+NAME: tab:pipe_wall
 #+RESULTS:
-
+| Piping/tubing size | OD, in | Min wall thick, in | Act thick, in | Wall thick ratio |
+|--------------------+--------+--------------------+---------------+------------------|
+| Tube, 0.25"x0.022" |   0.25 |           0.000112 |         0.022 |              196 |
+| Tube, 0.25"x0.03"  |   0.25 |           0.000312 |          0.03 |             96.1 |
 
 #+begin_src python :results table
-table = []
-table.append(['P',' = ', f'{P_des:.3g~}', 'Design pressure'])
-table.append(['S',' = ', f'{pipes[0].material.S:.0f~}', 'Allowable stress, B31.3 A-1'])
-table.append(['E',' = ', f'{E:.3g}', 'Quality factor, B31.3 A-1A, A-1B'])
-table.append(['W',' = ', f'{W:.3g}', 'Weld joint stress reduction factor, B31.3 302.3.5(e)'])
-table.append(['Y',' = ', f'{Y:.3g}', 'Coefficient, B31.3 304.1.1'])
-print(table)
+  table = []
+  table.append(['P',' = ', f'{P_des:.3g~}', 'Design pressure'])
+  stress_values = set([pipe.material.S for pipe in pipes])
+  if len(stress_values) > 1:
+      stress_str = '/varies/'
+  else:
+      stress_str = f'{stress_values.pop():.3g~}'
+  table.append(['S',' = ', stress_str, 'Allowable stress, B31.3 A-1'])
+  table.append(['E',' = ', f'{E:.3g}', 'Quality factor, B31.3 A-1A, A-1B'])
+  table.append(['W',' = ', f'{W:.3g}', 'Weld joint stress reduction factor, B31.3 302.3.5(e)'])
+  table.append(['Y',' = ', f'{Y:.3g}', 'Coefficient, B31.3 304.1.1'])
+  print(table)
 #+end_src
 
 #+CAPTION: Values for wall thickness calculation
