@@ -5,6 +5,7 @@ import os
 import heat_transfer as ht
 from math import pi, log
 from dataclasses import dataclass
+from tabulate import tabulate
 ureg = ht.ureg
 u = ureg
 Q_ = ht.Q_
