@@ -145,3 +145,7 @@ SS316.T_min = Q_(-425, u.degF)
 copper = Material('copper')
 copper.S = Q_('6000 psi')
 copper.T_min = Q_(-452, u.degF)
+
+brass = Material('brass')
+brass.S = Q_('7300 psi')  # Lowest copper alloy value from B31.3
+brass.T_min = Q_(-325, u.degF)  # Highest copper alloy value from B31.3
