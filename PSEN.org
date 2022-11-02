@@ -327,7 +327,7 @@ The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
         percentage = (P_test-ht.P_NTP) / P_des
         percentage.ito_base_units()
         print(f'For a pneumatic test, the test pressure is {percentage:.0%~} of the design pressure ({P_des:.3g~}) or {P_test:.3g~}.')
-        print('The test medium will be gaseous {pt_fluid.name}. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
+        print(f'The test medium will be gaseous {pt_fluid.name}. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
     if CATEGORY == 'D':
         print('345.7 initial service leak test in accordance with 345.1 (a) for Category D piping.')
 #+end_src
