@@ -136,13 +136,19 @@ def pressure_rating(component, E, W, Y):
 
 
 
-SS304 = Material('304SS')
+SS304 = Material('304 SS')
 SS304.rho = Q_('7859 kg/m**3')
-SS304.S = Q_('16700 psi')  # 304L SS allowable stress
+SS304.S = Q_('20,000 psi')  # 304L SS allowable stress
 SS304.nu = 0.3  # Poisson's ratio
 SS304.T_min = Q_(-425, u.degF)
 
-SS316 = Material('316SS')
+SS304L = Material('304L SS')
+SS304L.rho = Q_('7859 kg/m**3')
+SS304L.S = Q_('16,700 psi')  # 304L SS allowable stress
+SS304L.nu = 0.3  # Poisson's ratio
+SS304L.T_min = Q_(-425, u.degF)
+
+SS316 = Material('316 SS')
 SS316.S = Q_('20_000 psi')  # Table A-1 316 bar
 SS316.T_min = Q_(-425, u.degF)
 
