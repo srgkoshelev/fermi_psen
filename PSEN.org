@@ -53,18 +53,21 @@
 
   # Unlisted components
   unlisted = [
-      Component('Butt-weld VCR gland', '1/4"', 'Swagelok',
-                material=SS316, P=5100*u.psi),
+      Component('Butt-weld VCR gland', '1/2"', 'Swagelok',
+                material=SS316, P=3700*u.psi),
+      Component('Cryogenic valve', '1/2"', 'Cryolab EC2-084-5WPG1',
+                material=SS304, P=400*u.psi),
   ]
+
+  # Connected volumes for blast radia calc
+  con_volume = 1875 * u.gallon
 #+end_src
 
 #+RESULTS:
-: [('Tube, 0.25 inx0.022 in, L=1 ft', '1 ft', '0.00023 ft ** 3')]
-: True
 
 #+begin_src python :results p output replace :exports none
   # Check for low stress requirements
-  P_des = P_des.to(ureg.psi) + (VJ-1)*ht.P_NTP
+  P_des = P_des.to(ureg.psi) + int(VJ-1)*ht.P_NTP
   P_des.ito(u.psid)
 
   low_stress = check_low_stress(P_des, T_des, [*pipes, *listed, *unlisted],
@@ -79,16 +82,15 @@
   P_test.ito(u.psig)
   pt_fluid = ht.ThermState(pt_fluid_name, P=P_test, T=ht.T_NTP)
 
-  # Connected volumes for blast radia calc
-  con_volume = 0 * u.L
-
 
   # Printing piping info for the cover page
   print([(str(pipe), f'{pipe.L.to(u.ft):.2g~}', f'{pipe.volume.to(u.ft**3):.2g~}') for pipe in pipes])
 #+end_src
+
+#+RESULTS:
+
 * Introduction
-One of the steps in Luke test stand operation requires its airlock to be purged with clean argon gas. During last rebuild effort orientation of the gate valve isolating the airlock has been changed. This change has made it impossible to purge the airlock using the gas from the ullage. A new line is built to provide this capability.
-This document constitutes the piping engineering note for {{{SYS_NAME}}}.
+A liquid withdrawal valve on the NLTF (PAB) LN_2 tank has recently developed a leak and needs to be replaced. This engineering note covers modification of the {{{SYS_NAME}}} required to install the replacement valve.
 The current version of the document is maintained in Team Center {{{DOC_NUM}}}.
 
 
@@ -178,7 +180,8 @@ Table [[tab:allowable_stress]] summarizes the materials used and the allowable s
 The minimum required wall thickness is calculated using B31.3 304.1.2 and is shown in Table [[tab:pipe_wall]].
 
 $$t=\frac{PD}{2(SEW+PY)}$$
-#+begin_src python :results table :colnames '("Piping/tubing size"	"OD, in"	"Min wall thick, in"	"Act thick, in"	"Wall thick ratio")
+#+begin_src python :results table
+  headers = ("Piping/tubing size",	"OD, in",	"Min wall thick, in",	"Act thick, in",	"Wall thick ratio")
   table = []
   for pipe in pipes:
       if pipe.type == 'Tube':
@@ -199,6 +202,7 @@ $$t=\frac{PD}{2(SEW+PY)}$$
 
 #+CAPTION: Minimum required and actual wall thicknesses
 #+NAME: tab:pipe_wall
+#+ATTR_LATEX: :align p{3cm}rp{2cm}rp{2cm}
 #+RESULTS:
 | Piping/tubing size | OD, in | Min wall thick, in | Act thick, in | Wall thick ratio |
 |--------------------+--------+--------------------+---------------+------------------|
@@ -207,12 +211,12 @@ $$t=\frac{PD}{2(SEW+PY)}$$
 
 #+begin_src python :results table
   table = []
-  table.append(['P',' = ', f'{P_des:.3g~}', 'Design pressure'])
+  table.append(['P',' = ', f'{P_des:,.0f~}', 'Design pressure'])
   stress_values = set([pipe.material.S for pipe in pipes])
   if len(stress_values) > 1:
       stress_str = '/varies/'
   else:
-      stress_str = f'{stress_values.pop():.3g~}'
+      stress_str = f'{stress_values.pop():,.0f~}'
   table.append(['S',' = ', stress_str, 'Allowable stress, B31.3 A-1'])
   table.append(['E',' = ', f'{E:.3g}', 'Quality factor, B31.3 A-1A, A-1B'])
   table.append(['W',' = ', f'{W:.3g}', 'Weld joint stress reduction factor, B31.3 302.3.5(e)'])
@@ -324,6 +328,8 @@ The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
         print(' 345.5.4.')
         percentage = (P_test-ht.P_NTP) / P_des
         percentage.ito_base_units()
+        if low_stress:
+            print('The piping system qualifies for low stress piping in accordance with FESHM 5031.1.')
         print(f'For a pneumatic test, the test pressure is {percentage:.0%~} of the design pressure ({P_des:.3g~}) or {P_test:.3g~}.')
         print(f'The test medium will be gaseous {pt_fluid.name}. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
     if CATEGORY == 'D':
