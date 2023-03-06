@@ -338,10 +338,6 @@ The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
 
 #+RESULTS:
 
-#+begin_comment
-The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3 345.5.4. For a pneumatic test, the test pressure is 110% of the design pressure (src_python{print(f'{P_des:.3g~}')}) or src_python{print(f'{P_test:.3g~}')}. The test medium will be gaseous nitrogen.  After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].
-Procedure for pressure testing of {{{SYS_NAME}}} is attached in Appendix [[*Pressure testing procedure]].
-#+end_comment
 * Summary
 The design of the {{{SYS_NAME}}} documented in this note is adequate to ensure its operation presents no hazards to personnel.
 * Appendix
