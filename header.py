@@ -94,7 +94,11 @@ def summarize_material(materials):
         material_names.add(material[1].name)
     if is_300_series(material_names):
         result = ', '.join([name for name in sorted(material_names) if re.search('^3.*SS$', name) is None])
-        return result + ', and 300 series stainless steel'
+        if result:
+            result += ', and '
+        else:
+            pass
+        return result + '300 series stainless steel'
     else:
         result = [name for name in sorted(material_names)]
         result[-1] = 'and ' + result[-1]
@@ -123,14 +127,15 @@ def check_low_stress(P_des, T_des, components, *, E, W, Y):
 
 
 def pressure_rating(component, E, W, Y):
-    if component.type == 'Tube':
+    tube_types = ('Tube', 'NPS pipe', 'Copper tube Type K')  # Types should be class variables in piping
+    if component.type in tube_types:
         rating = ht.piping.pressure_rating(component,
                                            S=component.material.S,
                                            E=E, W=W, Y=Y)
     elif component.type == 'Fitting':
         rating = component.P
     else:
-        raise TypeError('Unknown component type: {component.type}')
+        raise TypeError(f'Unknown component type: {component.type}')
     return rating
 
 
@@ -149,7 +154,7 @@ SS304L.nu = 0.3  # Poisson's ratio
 SS304L.T_min = Q_(-425, u.degF)
 
 SS316 = Material('316 SS')
-SS316.S = Q_('20_000 psi')  # Table A-1 316 bar
+SS316.S = Q_('20,000 psi')  # Table A-1 316 bar
 SS316.T_min = Q_(-425, u.degF)
 
 copper = Material('copper')
