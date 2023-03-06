@@ -157,6 +157,10 @@ SS316 = Material('316 SS')
 SS316.S = Q_('20,000 psi')  # Table A-1 316 bar
 SS316.T_min = Q_(-425, u.degF)
 
+SS316L = Material('316L SS')
+SS316L.S = Q_('16,700 psi')  # Table A-1
+SS316L.T_min = Q_(-425, u.degF)
+
 copper = Material('copper')
 copper.S = Q_('6000 psi')
 copper.T_min = Q_(-452, u.degF)
