@@ -28,19 +28,17 @@
 
 * Inputs                                                           :noexport:
 #+begin_src python :results pp output replace :exports none
-  P_des = Q_(15, u.psig)  # Design pressure
+  P_des = Q_(75, u.psig)  # Design pressure
   T_des = 77 * u.K  # Design temperature
   # TODO make design temperature a range
   VJ = False  # Is piping vacuum jacketed?
   pt_fluid_name = 'nitrogen'  # Pressure testing fluid
 
   # Pipe list
-  SS_tube = ht.piping.Tube(0.25*u.inch, wall=0.022*u.inch, L=29*u.ft)
-  copper_tube = ht.piping.CopperTube(0.25*u.inch, type_="M")  # conservative
+  SS_tube = ht.piping.Pipe(1/2, SCH=5)  # Conservative
 
-  pipes = ht.piping.Piping(SS_tube,
-                           copper_tube
-           )
+  pipes = [SS_tube,
+           ]
   E = 1
   W = 1
   Y = 0.4
