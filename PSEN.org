@@ -319,21 +319,22 @@ The {{{SYS_NAME}}} is operated at a room temperature thus no flexibility calcula
 All brazing is made and certified by Fermilab. Code required certifications, e.g. WPS, PQR, are available at [[https://www-tdserver1.fnal.gov/tdweb/ms/Policies/Welding/index.htm][Fermi welding procedures web page]]. Completed inspection forms are included in the Appendix [[*Inspection forms]].
 
 * Pressure testing
-The {{{SYS_NAME}}} will be pressure tested in accordance with B31.3
+The {{{SYS_NAME}}} will be pressure tested in accordance with FESHM 5031.1 5.5.
 #+begin_src python
   if VJ:
       print('Check test pressure calculation')
   else:
     if CATEGORY == 'Normal':
-        print(' 345.5.4.')
+        if low_stress:
+            print('The piping system qualifies for low stress piping and will be tested per FESHM 5031.1 5.5.b.')
+        else:
+          print('For normal fluid service, the pressure test will be carried out as per B31.3 345.5.4.')
         percentage = (P_test-ht.P_NTP) / P_des
         percentage.ito_base_units()
-        if low_stress:
-            print('The piping system qualifies for low stress piping in accordance with FESHM 5031.1.')
         print(f'For a pneumatic test, the test pressure is {percentage:.0%~} of the design pressure ({P_des:.3g~}) or {P_test:.3g~}.')
-        print(f'The test medium will be gaseous {pt_fluid.name}. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
+        print(f'The test medium will be gaseous {pt_fluid.name.lower()}. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
     if CATEGORY == 'D':
-        print('345.7 initial service leak test in accordance with 345.1 (a) for Category D piping.')
+        print('As per B31.3 345.7 initial service leak test in accordance with 345.1 (a) can be substituted for the pressure test for Category D piping.')
 #+end_src
 
 #+RESULTS:
