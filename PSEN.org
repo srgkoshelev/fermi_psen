@@ -28,9 +28,9 @@
 
 * Inputs                                                           :noexport:
 #+begin_src python :results pp output replace :exports none
-  P_des = Q_(75, u.psig)  # Design pressure
-  T_des = 77 * u.K  # Design temperature
-  # TODO make design temperature a range
+  P_des = Q_(350, u.psig)  # Design pressure
+  T_des = (Q_(-300, u.degF).to(u.K),
+           Q_(100, u.degF).to(u.K))  # Design temperature
   VJ = False  # Is piping vacuum jacketed?
   pt_fluid_name = 'nitrogen'  # Pressure testing fluid
 
@@ -70,8 +70,9 @@
   P_des = P_des.to(ureg.psi) + int(VJ-1)*ht.P_NTP
   P_des.ito(u.psid)
 
-  low_stress = check_low_stress(P_des, T_des, [*pipes, *listed, *unlisted],
-                         E=E, W=W, Y=Y)
+  low_stress = check_low_stress(P_des, T_des,
+                                [*pipes, *listed, *unlisted],
+                                E=E, W=W, Y=Y)
 
   # Pressure test pressure
   if low_stress:
@@ -90,12 +91,14 @@
 #+RESULTS:
 
 * Introduction
-A liquid withdrawal valve on the NLTF (PAB) LN_2 tank has recently developed a leak and needs to be replaced. This engineering note covers modification of the {{{SYS_NAME}}} required to install the replacement valve.
+A new flexible hose rated to 350 psig will be used to connect the LAr storage dewar with the transfer line. This will allow the storage tank to be operated at 315 psig or 90\nbsp{}% of 350 psig set pressure of the reliefs on the storage tank. This amendment covers both changes.
 The current version of the document is maintained in Team Center {{{DOC_NUM}}}.
 
-
-The design temperature is chosen to be
-src_python{print(f'{T_des.to(u.K):.3g~}')}
+#+begin_src python
+  print('Design temperature: ',
+        '..'.join([f'{T.m_as(u.K):.3g}' for T in T_des]),
+        ' K.')
+#+end_src
 
 The design pressure for {{{SYS_NAME}}} is
 src_python{print(f'{P_des:.3g~}')}
@@ -108,7 +111,7 @@ src_python{print(f'{P_des:.3g~}')}
 All the piping must meet all of the requirements of Section 5031.1 of the Fermilab ES&H Manual.
 #+begin_src python
   print('This section states that piping systems containing gas at a pressure ')
-  if P_des > Q_(150, u.psig) or T_des < Q_(-20, u.degF):
+  if P_des > Q_(150, u.psig) or min(T_des) < Q_(-20, u.degF):
       CATEGORY = 'Normal'
       print('above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service ')
   else:
@@ -130,14 +133,14 @@ The tubing including fittings is fabricated from
 
 The respective allowable stress from Table A-1 of ASME B31.3 will be used in this analysis.
 
-The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{T_des.to(u.K):.3g~} ({T_des.to(u.degF):.3g~})')}
+The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{min(T_des).to(u.K):.3g~} ({min(T_des).to(u.degF):.3g~})')}
 .
 #+begin_src python
-  if T_des > Q_(29, u.degC):
+  if min(T_des) > Q_(29, u.degC):
       print('For design temperature above 29 C, no impact testing is required according to B31.3 Table 323.2.2 A-4.')
   elif all(pipe.wall<0.098*u.inch for pipe in pipes):
       print('All of the tubing and piping with design minimum temperature below -20 F used in this system has a wall thickness of less than 0.098 in. In accordance with B31.3 Table 323.2.2 Note (5), impact testing is not required for this piping system.')
-  elif any(T_des < pipe.material.T_min for pipe in pipes):
+  elif any(min(T_des) < pipe.material.T_min for pipe in pipes):
     print('This is below the minimum temperature listed for any stainless steel pipe or tube. According to B31.3 Section 323.2.2, impact testing is required for this material except as stated in Table 323.2.2 Note (6) where impact testing is not required when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
   else:
     print('\n# TODO Fix logic here\nThis is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.')

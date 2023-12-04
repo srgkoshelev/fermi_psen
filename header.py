@@ -109,17 +109,24 @@ def is_300_series(material_names):
 
 def check_low_stress(P_des, T_des, components, *, E, W, Y):
     """Check whether the piping system satisfies low stress piping requirements
-    as defined by FESHM 5031.1"""
+    as defined by FESHM 5031.1
+
+    Parameters
+    ----------
+    P_des : Quantity, pressure
+    T_des : tuple of quantities, temperature
+    components : list of PipeElements or Components
+    """
     if P_des >= Q_(150, u.psid):
         print('Pressure too high for low stress category.')
         return False
     if any([(P_des/pressure_rating(c, E, W, Y)) > 0.2 for c in components]):
         print('Stress ratio too high for low stress category.')
         return False
-    if T_des > Q_(366, u.degC):
+    if max(T_des) > Q_(366, u.degC):
         print('Design temperature too high for low stress category.')
         return False
-    if any([T_des < c.material.T_min for c in components]):
+    if any([min(T_des) < c.material.T_min for c in components]):
         print('Material is not listed for this temperature.')
         return False
     else:
