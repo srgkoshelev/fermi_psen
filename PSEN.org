@@ -79,20 +79,34 @@
       P_test = 0.8 * P_des
   else:
       P_test = 1.1 * P_des
-  P_test += ht.P_NTP  # VJ calc will probably fail here
+  P_test += ctb.P_NTP  # VJ calc will probably fail here
   P_test.ito(u.psig)
-  pt_fluid = ht.ThermState(pt_fluid_name, P=P_test, T=ht.T_NTP)
+  pt_fluid = ctb.ThermState(pt_fluid_name, P=P_test, T=ctb.T_NTP)
 
 
   # Printing piping info for the cover page
-  print([(str(pipe), f'{pipe.L.to(u.ft):.2g~}', f'{pipe.volume.to(u.ft**3):.2g~}') for pipe in pipes])
+  print([(str(pipe), f'{pipe.volume.to(u.ft**3):.2g~}') for pipe in pipes])
+  print(sum([pipe.L for pipe in pipes]))
+  print(sum([pipe.volume for pipe in pipes]))
 #+end_src
 
 #+RESULTS:
+: Stress ratio too high for low stress category.
+: [('NPS pipe 1" SCH 10, L=15 ft', '0.098 ft ** 3'), ('NPS pipe 1" SCH 40, L=0 m', '0 ft ** 3'), ('Tube, 1 inx0.065 in, L=77 ft', '0.32 ft ** 3'), ('Tube, 0.25 inx0.035 in, L=5 ft', '0.00088 ft ** 3')]
+: 97.0 foot
+: 60.07858875912548 foot * inch ** 2
 
 * Introduction
-A new flexible hose rated to 350 psig will be used to connect the LAr storage dewar with the transfer line. This will allow the storage tank to be operated at 315 psig or 90\nbsp{}% of 350 psig set pressure of the reliefs on the storage tank. This amendment covers both changes.
-The current version of the document is maintained in Team Center {{{DOC_NUM}}}.
+The Noble Liquid Test Facility (NLTF) is undergoing a cryogenic upgrade. The goal of this upgrade is to replace the existing liquid argon and liquid nitrogen distribution systems with a new system that allows for higher filtering capacity and faster fills. The project is divided into several phases to minimize the impact on the NLTF's operations. The first phase of the project involves the installation of a new liquid argon (LAr) transfer line, LAr filter, and regeneration system. This document focuses on the /regeneration system/.
+
+The regeneration system mixes the gas argon from the storage dewar with the hydrogen-argon mixture from the tube trailer. Gas argon supply from the dewar is designed for 125 psi and operates at ambient temperature, falling into Category D of B31.3. Per FESHM, Category D piping doesn't require a formal engineering note and is not included in this document.
+
+Tubing upstream of the pressure regulator is rated to
+src_python{print(f'{P_des_h:,.0f~}')}
+to match the MAWP of the tube trailer as shown on Fig. [[fig:tube_trailer]]. This high pressure part of the system will be operated at ambient temperature. For all other tubing and piping the design parameters are listed below.
+#+NAME: fig:tube_trailer
+#+CAPTION: Tube trailer stamp.
+[[./images/Tube trailer.jpg]]
 
 #+begin_src python
   print('Design temperature: ',
@@ -111,9 +125,9 @@ src_python{print(f'{P_des:.3g~}')}
 All the piping must meet all of the requirements of Section 5031.1 of the Fermilab ES&H Manual.
 #+begin_src python
   print('This section states that piping systems containing gas at a pressure ')
-  if P_des > Q_(150, u.psig) or min(T_des) < Q_(-20, u.degF):
+  if P_des > Q_(150, u.psig) or min(T_des) < Q_(-20, u.degF) or max(T_des) > Q_(186, u.degC):
       CATEGORY = 'Normal'
-      print('above 150 psig or a temperature below -20 Fahrenheit fall under the category of Normal Fluid Service ')
+      print('above 150 psig or temperatures below -20 Fahrenheit or above 266 Fahrenheit fall under the category of Normal Fluid Service ')
   else:
       CATEGORY = 'D'
       print('below 150 psig and a temperature above -20 Fahrenheit fall under the Category D Fluid Service ')
@@ -168,7 +182,7 @@ Table [[tab:allowable_stress]] summarizes the materials used and the allowable s
   for material in materials:
       material_table.append((material[0], material[1].name,
                             material[1].S.m_as(u.psi)))
-  print(tabulate(material_table, headers=headers, tablefmt='orgtbl', floatfmt='.0f'))
+  print(tabulate(material_table, headers=headers, tablefmt='orgtbl', floatfmt=',.0f'))
 #+end_src
 
 #+CAPTION: Materials and Allowable Stress Values
@@ -189,11 +203,13 @@ $$t=\frac{PD}{2(SEW+PY)}$$
   for pipe in pipes:
       if pipe.type == 'Tube':
           size = f'{pipe.OD.m_as(u.inch):.3g}"x{pipe.wall.m_as(u.inch):.3g}"'
+          name = pipe.type + ', ' + size
+      elif pipe.type == 'NPS pipe':
+          name = pipe.__str__().split(',')[0]
       else:
-          size = 'Update this branch'
-      name = pipe.type + ', ' + size
+          name = 'Update this branch'
       OD = pipe.OD.m_as(u.inch)
-      t_min = ht.piping.pressure_design_thick(pipe, P_des, S=pipe.material.S, E=E, W=W, Y=Y)
+      t_min = ctb.piping.pressure_req_thick(pipe, P_des, S=pipe.material.S, E=E, W=W, Y=Y)
       t_min_s = t_min.m_as(u.inch)
       t_a = pipe.wall
       t_a_s = t_a.m_as(u.inch)
@@ -203,9 +219,9 @@ $$t=\frac{PD}{2(SEW+PY)}$$
   print(tabulate(table, headers=headers, tablefmt='orgtbl', floatfmt='.3g'))
 #+end_src
 
-#+CAPTION: Minimum required and actual wall thicknesses
+#+CAPTION: Wall thicknesses for low pressure
 #+NAME: tab:pipe_wall
-#+ATTR_LATEX: :align p{3cm}rp{2cm}rp{2cm}
+#+ATTR_LATEX: :align p{3cm}rp{2cm}rr
 #+RESULTS:
 | Piping/tubing size | OD, in | Min wall thick, in | Act thick, in | Wall thick ratio |
 |--------------------+--------+--------------------+---------------+------------------|
@@ -217,9 +233,9 @@ $$t=\frac{PD}{2(SEW+PY)}$$
   table.append(['P',' = ', f'{P_des:,.0f~}', 'Design pressure'])
   stress_values = set([pipe.material.S for pipe in pipes])
   if len(stress_values) > 1:
-      stress_str = '/varies/'
+      stress_str = '(see Table [[tab:allowable_stress]])'
   else:
-      stress_str = f'{stress_values.pop():,.0f~}'
+      stress_str = f'{stress_values.pop().to(u.psi):,.0f~}'
   table.append(['S',' = ', stress_str, 'Allowable stress, B31.3 A-1'])
   table.append(['E',' = ', f'{E:.3g}', 'Quality factor, B31.3 A-1A, A-1B'])
   table.append(['W',' = ', f'{W:.3g}', 'Weld joint stress reduction factor, B31.3 302.3.5(e)'])
@@ -265,7 +281,7 @@ Extensive service experience at Fermilab allows the use of these components in p
       source = component.source
       P = f'{component.P.m_as(u.psi):.0f}'
       if 'CF' in component.name:
-          P += '[fn:: CF flange pressure rating taken from Conflat Analysis Report ED0004253]'
+          P += '[fn:: CF flange pressure rating taken from Conflat Analysis Report ED0004253].'
       P_des_s = f'{P_des.m_as(u.psid):.0f}'
       table.append((name, source, P, P_des_s))
     return table
@@ -332,7 +348,7 @@ The {{{SYS_NAME}}} will be pressure tested in accordance with FESHM 5031.1 5.5.
             print('The piping system qualifies for low stress piping and will be tested per FESHM 5031.1 5.5.b.')
         else:
           print('For normal fluid service, the pressure test will be carried out as per B31.3 345.5.4.')
-        percentage = (P_test-ht.P_NTP) / P_des
+        percentage = (P_test-ctb.P_NTP) / P_des
         percentage.ito_base_units()
         print(f'For a pneumatic test, the test pressure is {percentage:.0%~} of the design pressure ({P_des:.3g~}) or {P_test:.3g~}.')
         print(f'The test medium will be gaseous {pt_fluid.name.lower()}. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
@@ -372,12 +388,12 @@ gas. There is potential for:
 - Striking hazard due to failure of piping or piping components
 The pressure test area will be roped off at a radius larger than an estimated blast radius (see Table [[tab:blast_radius]]).
 #+begin_src python
-  E_stored = pipes.stored_energy(pt_fluid) + ht.stored_energy(pt_fluid, con_volume)
-  blast_radius = ht.blast_radius(E_stored)
+  E_stored = ctb.piping.piping_stored_energy(pt_fluid, pipes) + ctb.stored_energy(pt_fluid, con_volume)
+  blast_radius = ctb.blast_radius(E_stored)
   headers =  ("Test fluid", "Stored energy, kJ", "Blast radius, m")
   table = [[str(pt_fluid), E_stored.m_as(u.kJ),
           max(blast_radius).m_as(u.m)]]
-  print(tabulate(table, headers=headers, tablefmt='orgtbl', floatfmt='.0f'))
+  print(tabulate(table, headers=headers, tablefmt='orgtbl', floatfmt='.2g'))
 #+end_src
 
 
@@ -404,64 +420,11 @@ Refer to Figure [[fig:setup]] for the layout of the test equipment.  The specifi
 #+NAME: tab:equipment
 #+CAPTION: Test Equipment Component Specification
 | Component | Description           | Range                        |
-| PI-1      | Supply Pressure Gauge | 60 psig                     |
-| PSV-1     | Safety Relief Valve   | 30 psig (cracking pressure)  |
-| PI-3      | Test Pressure Gauge   | 60 psig                      |
+| PI-1      | Supply Pressure Gauge | TBD psig                     |
+| PSV-1     | Safety Relief Valve   | TBD psig (cracking pressure) |
+| PI-3      | Test Pressure Gauge   | TBD psig                     |
 
 *** Test Preparation
-**** Isolate the piping from other portions of the facility.
-1. Remove reliefs and plug pipe outlets:
-   - [ ] PSV-1661
-   - [ ] PSV-1662
-   - [ ] PSV-1601
-   - [ ] PSV-1602
-2. Ensure following purifier panel valves *open*:
-   - [ ] HV-1666
-   - [ ] HV-1627A/B
-   - [ ] HV-1669A/B
-   - [ ] HV-1670A/B
-   - [ ] HV-1665A/B
-   - [ ] HV-1664A/B
-   - [ ] HV-1661A/B
-   - [ ] HV-1632A/B
-   - [ ] HV-1631A/B
-   - [ ] HV-1663A/B
-   - [ ] HV-401 ALT (any direction)
-3. Ensure following valves *closed*:
-   - Purifier panel
-     - [ ] HV-1662
-     - [ ] HV-1603
-     - [ ] HV-1666A
-     - [ ] HV-1626A/B
-     - [ ] HV-1612A/B
-     - [ ] HV-1625A/B
-     - [ ] HV-1668A/B
-     - [ ] HV-1633A/B
-     - [ ] HV-1630A/B
-     - [ ] HV-1629A/B
-     - [ ] HV-1628A/B
-   - Turbine scrub
-     - [ ] HV-34
-   - Compressor middle stage
-     - [ ] PCV-1406
-   - Dist box
-     - [ ] HV-401
-     - [ ] HV-8 ALT
-     - [ ] HV-1761
-   - Mycom suction
-     - [ ] YCV-1703
-     - [ ] HV-1703-C
-   - Storage dewar
-     - [ ] HV-315
-   - Buffer tanks
-     - [ ] HV-140
-**** Connect Test Equipment
-1. Setup the test equipment in a safe location outside the roped off area.
-2. Install the pressure test gauge PI-3.
-3. Connect the test gas connection from MV-3.
-**** Perform the pressure test according to section [[*Pressure Test]].
-**** Switch HV-401 ALT to alternative direction
-**** Perform the pressure test according to section [[*Pressure Test]].
 *** Pressure Test
 During this test procedure, the pressure will be increased in steps waiting at each step to verify that the pressure remains constant.  If at any time a leak is suspected, reduce the pressure to half of the value for the current step and check for leaks with the soap bubble method.  When a leak is found, the piping must be depressurized before repairing the leak.  (per FESHM 5034 7.3.b. and 3.c.)
 

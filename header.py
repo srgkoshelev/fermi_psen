@@ -2,13 +2,13 @@ from wand.image import Image
 import fnmatch
 import re
 import os
-import heat_transfer as ht
+import CryoToolBox as ctb
 from math import pi, log
 from dataclasses import dataclass
 from tabulate import tabulate
-ureg = ht.ureg
+ureg = ctb.ureg
 u = ureg
-Q_ = ht.Q_
+Q_ = ctb.Q_
 
 
 def make_pics(fname):
@@ -60,14 +60,14 @@ class Material():
 
         def kappa(self, T1, T2=None):
             """Calculate temperature conductivity at a given temperature."""
-            return ht.nist_property(self.name, 'TC', T1, T2)
+            return ctb.nist_property(self.name, 'TC', T1, T2)
 
         def lin_exp(self, T):
             """Calculate linear expansion for given temperature"""
             try:
-                return ht.nist_property(self.name, 'LE', T)
+                return ctb.nist_property(self.name, 'LE', T)
             except KeyError:
-                return ht.nist_property(self.name, 'EC', 293*u.K, T) * \
+                return ctb.nist_property(self.name, 'EC', 293*u.K, T) * \
                     (T-293*u.K)
 
 
@@ -120,7 +120,7 @@ def check_low_stress(P_des, T_des, components, *, E, W, Y):
     if P_des >= Q_(150, u.psid):
         print('Pressure too high for low stress category.')
         return False
-    if any([(P_des/pressure_rating(c, E, W, Y)) > 0.2 for c in components]):
+    if any([(P_des/component_pressure_rating(c, E, W, Y)) > 0.2 for c in components]):
         print('Stress ratio too high for low stress category.')
         return False
     if max(T_des) > Q_(366, u.degC):
@@ -133,20 +133,30 @@ def check_low_stress(P_des, T_des, components, *, E, W, Y):
         return True
 
 
-def pressure_rating(component, E, W, Y):
-    tube_types = ('Tube', 'NPS pipe', 'Copper tube Type K')  # Types should be class variables in piping
-    if component.type in tube_types:
-        rating = ht.piping.pressure_rating(component,
-                                           S=component.material.S,
-                                           E=E, W=W, Y=Y)
-    elif component.type == 'Fitting':
-        rating = component.P
+def component_pressure_rating(component, E, W, Y):
+    """Return pressure rating of a component."""
+    try:
+        return component.P
+    except AttributeError:
+        P = ctb.piping.pressure_rating(component, S=component.material.S,
+                                       E=E, W=W, Y=Y)
+        return P
+
+def add_pressure_rating(component, E, W, Y):
+    """
+    Calculate pressure rating of a listed component. Pressure
+    rating is based on straight seamless pipe per B31.3 302.2.2."""
+    if component.P is not None:  # If rating is established
+        return component
+    if 'NPS' in component.size:
+        size = float(component.size.split('"')[0])
+        pipe = ctb.piping.Pipe(size, SCH=10)  # Default
+        component.P = ctb.piping.pressure_rating(pipe,
+                                                 S=component.material.S,
+                                                 E=E, W=W, Y=Y)
+        return component
     else:
-        raise TypeError(f'Unknown component type: {component.type}')
-    return rating
-
-
-
+        raise ValueError(f'Component size {component.size} is not supported.')
 
 SS304 = Material('304 SS')
 SS304.rho = Q_('7859 kg/m**3')
