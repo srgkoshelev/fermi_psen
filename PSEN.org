@@ -1,12 +1,13 @@
-#+PROPERTY: header-args:python :session *python-PSEN* :results output raw :exports results
-#+MACRO: SYS_NAME LAr dewar sampling line
-#+MACRO: DOC_NUM EN08795
+#+PROPERTY: header-args:python :session *python-PSEN-Drogo* :results output raw :exports results
+#+MACRO: SYS_NAME Drogo filter
+#+MACRO: DOC_NUM EN14509
 #+MACRO: P_ID N/A
 
 #+TITLE: {{{SYS_NAME}}} engineering note\newline {{{DOC_NUM}}}
 #+OPTIONS: toc:nil tex:t broken-links:t
 #+LATEX_CLASS_OPTIONS: [titlepage]
 #+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \usepackage{pdfpages}
 #+TOC: headlines 2
 #+MACRO: CHECK *CHECK/UPDATE THIS!*
 
@@ -65,9 +66,9 @@
 
 #+RESULTS:
 
-#+begin_src python :results p output replace :exports none
+#+begin_src python :results pp output replace :exports none
   # Check for low stress requirements
-  P_des = P_des.to(ureg.psi) + int(VJ-1)*ht.P_NTP
+  P_des = P_des.to(ureg.psi) + int(VJ-1)*ctb.P_NTP
   P_des.ito(u.psid)
 
   low_stress = check_low_stress(P_des, T_des,
@@ -76,10 +77,10 @@
 
   # Pressure test pressure
   if low_stress:
-      P_test = 0.8 * P_des
+      pt_coeff = 0.8
   else:
-      P_test = 1.1 * P_des
-  P_test += ctb.P_NTP  # VJ calc will probably fail here
+      pt_coeff = 1.1
+  P_test = pt_coeff*P_des + int(not VJ)*ctb.P_NTP  # VJ calc will probably fail here
   P_test.ito(u.psig)
   pt_fluid = ctb.ThermState(pt_fluid_name, P=P_test, T=ctb.T_NTP)
 
@@ -338,22 +339,21 @@ The {{{SYS_NAME}}} is operated at a room temperature thus no flexibility calcula
 All brazing is made and certified by Fermilab. Code required certifications, e.g. WPS, PQR, are available at [[https://www-tdserver1.fnal.gov/tdweb/ms/Policies/Welding/index.htm][Fermi welding procedures web page]]. Completed inspection forms are included in the Appendix [[*Inspection forms]].
 
 * Pressure testing
-The {{{SYS_NAME}}} will be pressure tested in accordance with FESHM 5031.1 5.5.
+The {{{SYS_NAME}}} will undergo pressure testing in accordance with FESHM 5031.1 Section 5.5.
 #+begin_src python
   if VJ:
-      print('Check test pressure calculation')
+      VJ_pt_text = ' with external vacuum'
   else:
-    if CATEGORY == 'Normal':
-        if low_stress:
-            print('The piping system qualifies for low stress piping and will be tested per FESHM 5031.1 5.5.b.')
-        else:
-          print('For normal fluid service, the pressure test will be carried out as per B31.3 345.5.4.')
-        percentage = (P_test-ctb.P_NTP) / P_des
-        percentage.ito_base_units()
-        print(f'For a pneumatic test, the test pressure is {percentage:.0%~} of the design pressure ({P_des:.3g~}) or {P_test:.3g~}.')
-        print(f'The test medium will be gaseous {pt_fluid.name.lower()}. After this document is reviewed and the pressure tests completed, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
-    if CATEGORY == 'D':
-        print('As per B31.3 345.7 initial service leak test in accordance with 345.1 (a) can be substituted for the pressure test for Category D piping.')
+      VJ_pt_text = ''
+  if CATEGORY == 'Normal':
+      if low_stress:
+          print('The piping system qualifies for low stress piping and will be tested per FESHM 5031.1 5.5.b.')
+      else:
+        print('For normal fluid service, the pressure test will be conducted in accordance with B31.3 345.5.4.')
+      print(f'For the pneumatic test, the test pressure will be set at {pt_coeff:.0%} of the design pressure ({P_des:.3g~}), resulting in pressure of {P_test:.3g~}{VJ_pt_text}.')
+      print(f'The test medium will be gaseous {pt_fluid.name.lower()}. Upon completion of the document review and the pressure tests, copies of the witnessed pressure test permits will be included in the Appendix [[*Pressure testing permits]].')
+  if CATEGORY == 'D':
+      print('As per B31.3 345.7 initial service leak test in accordance with 345.1 (a) can be substituted for the pressure test for Category D piping.')
 #+end_src
 
 #+RESULTS:
