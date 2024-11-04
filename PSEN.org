@@ -32,11 +32,11 @@
   P_des = Q_(350, u.psig)  # Design pressure
   T_des = (Q_(-300, u.degF).to(u.K),
            Q_(100, u.degF).to(u.K))  # Design temperature
-  VJ = False  # Is piping vacuum jacketed?
-  pt_fluid_name = 'nitrogen'  # Pressure testing fluid
+  VJ = True  # Is piping vacuum jacketed?
+  pt_fluid_name = 'air'  # Pressure testing fluid
 
   # Pipe list
-  SS_tube = ht.piping.Pipe(1/2, SCH=5)  # Conservative
+  SS_tube = ctb.piping.Pipe(1/2, SCH=5, L=1*u.ft)  # Conservative
 
   pipes = [SS_tube,
            ]
@@ -46,30 +46,22 @@
 
   # Defining pipe materials
   for pipe in pipes:
-      pipe.material = SS304
+      pipe.material = SS304L
 
   # Listed components
   listed = [
-      Component('Elbow', '1" NPS', 'Original',
-                material=SS304L, P=None),
-      Component('Tee', '1" NPS', 'Original',
-                material=SS304L, P=None),
   ]
   # Updating pressure ratings
   listed = [add_pressure_rating(c, E, W, Y) for c in listed]
 
   # Unlisted components
   unlisted = [
-      # Component('Butt-weld VCR gland', '1/2"', 'Swagelok',
-      #           material=SS316, P=3700*u.psi),
+      Component('Butt-weld VCR gland', '1/2"', 'Swagelok',
+                material=SS316, P=3700*u.psi),
+      Component('Techflex hose', '3/4" ID', 'Technifab T069393',
+                material=SS304, P=350*u.psi),
       # Component('Cryogenic valve', '1/2"', 'Cryolab EC2-084-5WPG1',
       #           material=SS304, P=400*u.psi),
-      Component('Conflat', '2-3/4"', 'KJ Lesker',
-                material=SS316, P=350*u.psi),
-      Component('Compression fittings', '1"', 'Swagelok',
-                material=SS316, P=2400*u.psi),
-      Component('Adapter', '1"NPSx1"OD', 'McMaster 5237K232',
-                material=SS316L, P=600*u.psi),
   ]
 
   # Connected volumes for blast radia calc
@@ -134,6 +126,9 @@ src_python{print(f'{P_des:.3g~}')}
 #+NAME: fig:P_ID_
 [[./images/P_ID_.png]]
 
+** Introduction to Amendment D
+A new flexible hose rated to 350 psig will be used to replace an existing hose that connects the LAr storage dewar with the LAr transfer line. This will allow the storage tank to be operated at 315 psig or 90\nbsp{}% of 350 psig set pressure of the reliefs on the storage tank. This amendment covers both changes.
+No modifications including welding or brazing is done to the existing LAr transfer line.
 * Design codes and evaluation criteria
 All the piping must meet all of the requirements of Section 5031.1 of the Fermilab ES&H Manual.
 #+begin_src python
