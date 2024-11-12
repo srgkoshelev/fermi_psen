@@ -58,8 +58,16 @@
   unlisted = [
       Component('Butt-weld VCR gland', '1/2"', 'Swagelok',
                 material=SS316, P=3700*u.psi),
-      Component('Techflex hose', '3/4" ID', 'Technifab T069393',
-                material=SS304, P=350*u.psi),
+      Component('Butt-weld VCR gland', '1/4"', 'Swagelok 6LV-4-VCR-3S-4TB7',
+                material=SS316, P=5100*u.psi),
+      Component('Conflat', '2-3/4"', 'KJ Lesker',
+                material=SS316, P=Q_(350, u.psig)),
+      Component('Compression fittings', '1"', 'Swagelok',
+                material=SS316, P=2400*u.psi),
+      Component('Adapter', '1"NPSx1"OD', 'McMaster 5237K232',
+                material=SS316L, P=600*u.psi),
+      Component('Valve', '1/4"', 'Carten',
+                material=SS316, P=250*u.psi),
       # Component('Cryogenic valve', '1/2"', 'Cryolab EC2-084-5WPG1',
       #           material=SS304, P=400*u.psi),
   ]
