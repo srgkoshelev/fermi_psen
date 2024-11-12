@@ -155,32 +155,29 @@ The tubing including fittings is fabricated from
 
 The respective allowable stress from Table A-1 of ASME B31.3 will be used in this analysis.
 
-The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{min(T_des).to(u.K):.3g~} ({min(T_des).to(u.degF):.3g~})')}
-.
+The {{{SYS_NAME}}} will be operated at temperatures down to src_python{print(f'{min(T_des).to(u.K):.3g~} ({min(T_des).to(u.degF):.3g~}).')}
 #+begin_src python
   if min(T_des) > Q_(29, u.degC):
       print('For design temperature above 29 C, no impact testing is required according to B31.3 Table 323.2.2 A-4.')
   elif all(pipe.wall<0.098*u.inch for pipe in pipes):
       print('All of the tubing and piping with design minimum temperature below -20 F used in this system has a wall thickness of less than 0.098 in. In accordance with B31.3 Table 323.2.2 Note (5), impact testing is not required for this piping system.')
   elif any(min(T_des) < pipe.material.T_min for pipe in pipes):
-    print('This is below the minimum temperature listed for any stainless steel pipe or tube. According to B31.3 Section 323.2.2, impact testing is required for this material except as stated in Table 323.2.2 Note (6) where impact testing is not required when the minimum obtainable Charpy specimen has a width along the notch of less than 2.5 mm (0.098 in).')
+    print('This is below the minimum temperature listed for any stainless steel pipe or tube. According to B31.3 Section 323.2.2, impact testing is required for this material.')
+  elif min(T_des) >= 77*u.K and all(pipe.wall<=0.359*u.inch for pipe in pipes):
+      print(f'According to “Charpy Impact Testing at LN2 Temperature” Memo (ED0004216): “All Charpy impact testing requirements have been satisfied for using 304 and 304L piping components with 308L filler metal and a wall thickness of less than 0.359”. The extensive and successful experience Fermilab has had with the materials listed above has been reinforced with successful Charpy impact testing. No further testing should be required for most LN2 piping assemblies fabricated by AD/Cryo as long as thickness requirements are met.” All piping has wall thickness less than 0.359” and satisfies this requirement.')
   else:
-    print('\n# TODO Fix logic here\nThis is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.')
+    print('\n*TODO Fix logic here*\n\nThis is above the minimum temperature listed for all materials used in the system. According to B31.3 Section 323.2.2 (d), impact testing is not required for base metal of such piping.')
   print('The same rule applies to HAZ and welded metal.')
 #+end_src
 
 #+RESULTS:
 
-#+begin_comment
-It should also be noted that Fermilab has extensive service experience using the 300 series stainless steel at liquid nitrogen temperatures and below.
 
+#+begin_comment
 Wall thickness of the 1.5” SCH 10 pipe is 0.109” which is greater than minimum obtainable Charpy specimen. According to Policy for Fracture Toughness Testing Requirements for Pressure Systems and Components at Low Cryogenic Temperatures  from 5/7/2010 recommends:
 “As an alternative to B31.3 323.2.2 and Table 323.2.2 cells A‐4 and B‐4, high alloy steel materials (austenitic stainless steels) listed in Section VIII Div 1 Table UHA‐ 23 used in cryogenic piping with MDMTs colder than 77 K may instead be subjected to all requirements of UHA‐51.”
 UHA-51 (g) exempts from impact testing materials listed in Table UHA-23, except as modified by UHA-51 (c), when ratio of design stress to allowable stress is less than 0.35. UHA-51 (c) (1) requires impact testing if the material has been thermally treated at temperatures between 900 F and 1650 F for austenitic steel. Off-the-shelf 304 and 316 steel is subject to annealing at temperatures above 1800 F and, therefore, is exempt from this requirement. As shown in Table 4.1, design stress to allowable stress ratio is less than 0.35 and impact testing is not required.
 
-Minimum design temperature of He piping is 77 K. According to “Charpy Impact Testing at LN2 Temperature” Memo (ED0004216):
-“All Charpy impact testing requirements have been satisfied for using 304 and 304L piping components with 308L filler metal and a wall thickness of less than 0.359”.  The extensive and successful experience Fermilab has had with the materials listed above has been reinforced with successful Charpy impact testing.  No further testing should be required for most LN2 piping assemblies fabricated by AD/Cryo as long as thickness requirements are met.”
-All piping has wall thickness less than 0.359” and satisfies this requirement.
 #+end_comment
 Table [[tab:allowable_stress]] summarizes the materials used and the allowable stresses from B31.3 Table A-1.
 
